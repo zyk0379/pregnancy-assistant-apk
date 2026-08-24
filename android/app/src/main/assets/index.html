@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="孕期助手">
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
-<title>🤰 孕期管理助手</title>
+<title>🍼 噜妹好孕</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 html, body { height: 100%; }
@@ -66,7 +66,7 @@ table.tbl th { font-weight: 500; color: #5f6368; font-size: 11px; }
 <body>
 <div id="app">
   <div class="header" id="headerBox">
-    <h1>🤰 孕期管理助手</h1>
+    <h1>🍼 噜妹好孕</h1>
     <div class="sub" id="headerSub">请先创建孕期档案</div>
   </div>
   <div class="content" id="content"></div>
@@ -173,6 +173,16 @@ function calcWeeks() {
   const edd = new Date(p.edd); const remain = edd ? Math.max(0, Math.ceil((edd - now) / 86400000)) : null;
   return { days, wks, dys, remain, edd };
 }
+// 根据末次月经计算指定日期的孕周
+function calcWeekAt(dateStr) {
+  const p = D.profile;
+  if (!p || !p.lmp || !dateStr) return '';
+  const lmp = new Date(p.lmp), d = new Date(dateStr);
+  if (isNaN(lmp.getTime()) || isNaN(d.getTime())) return '';
+  const days = Math.floor((d - lmp) / 86400000);
+  if (days < 0) return '';
+  return Math.floor(days/7) + '周+' + (days%7) + '天';
+}
 function nextCheckup(wks) {
   return CHECKUP_SCHEDULE.find(s => {
     const nums = s.week.replace('周','').split('-').map(Number);
@@ -263,7 +273,7 @@ async function deepseekAsk(prompt, system) {
 }
 // ========== 主渲染 ==========
 let curTab = 'home';
-const APP_VERSION = '1.2.2'; // 当前版本（检查更新用）
+const APP_VERSION = '2.0.0'; // 当前版本（检查更新用）
 const TABS = [
   { id:'home', ic:'🏠', l:'首页' },
   { id:'records', ic:'📝', l:'检查记录' },
@@ -410,7 +420,13 @@ function checkUpdate() {
       if (j.version && verCmp(j.version, APP_VERSION) > 0) {
         st.innerHTML = '🎉 发现新版本 v' + j.version + '！' + (j.date ? '（' + j.date + '）' : '');
         if (confirm('发现新版本 v' + j.version + '，是否立即下载更新？')) {
-          window.open(APK_URL, '_blank');
+          const a = document.createElement('a');
+          a.href = APK_URL;
+          a.download = 'lumehaoyun-v' + j.version + '.apk';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          st.textContent = '⬇️ 已开始下载 v' + j.version + '，下载完成后点击安装';
         }
       } else {
         st.textContent = '✅ 已是最新版本 v' + APP_VERSION;
@@ -423,8 +439,8 @@ function viewHome() {
   const box = h('div', {});
   if (!D.profile) {
     box.appendChild(h('div', {class:'card', style:{textAlign:'center'}},
-      h('div', {style:{fontSize:'40px'}}, '🤰'),
-      h('div', {style:{fontSize:'15px',color:'#64748b',margin:'8px 0'}}, '欢迎使用孕期管理助手'),
+      h('img', {src:'lume.png', style:{width:'76px',height:'76px',borderRadius:'50%',objectFit:'cover',boxShadow:'0 2px 8px rgba(0,0,0,.1)'}}),
+      h('div', {style:{fontSize:'15px',color:'#64748b',margin:'8px 0'}}, '欢迎使用噜妹好孕'),
       h('button', {class:'btn btn-p', onclick:modalProfile}, '📝 创建孕期档案'),
     ));
   } else {
@@ -617,13 +633,14 @@ function viewTrend() {
   for (const k of [...numKeys].slice(0,6)) {
     const ref = NORMAL_RANGES[k];
     const vals = sorted.map(r => ({ d: r.date, v: r.items[k] }));
+    const min = Math.min(...vals.map(x=>x.v));
     const max = Math.max(...vals.map(x=>x.v));
     box.appendChild(h('div', {class:'card'},
       h('div', {style:{display:'flex',justifyContent:'space-between',marginBottom:'6px'}},
         h('b', {}, k), ref ? h('span',{style:{fontSize:'11px',color:'#94a3b8'}}, `正常 ${ref.min??'-'}~${ref.max??'-'} ${ref.unit}`) : null),
       h('div', {class:'chart-row'},
         ...vals.map(x => {
-          const hh = max>0 ? (x.v/max*55+12) : 12;
+          const hh = max > min ? Math.round(8 + (x.v - min) / (max - min) * 62) : 40;
           const st = judge(k, x.v);
           const color = st==='bad' ? '#ef4444' : st==='ok' ? '#86efac' : '#c4628a';
           return h('div', {class:'chart-col'},
@@ -643,12 +660,15 @@ function viewExpense() {
     h('button', {class:'btn btn-p btn-xs', onclick:()=>modalExpense(null)}, '+ 添加费用'),
   ));
   const total = D.expenses.reduce((s,e)=>s+(e.amount||0),0);
+  const selfAmt = D.expenses.filter(e=>e.selfPaid).reduce((s,e)=>s+(e.amount||0),0);
+  const insuredAmt = total - selfAmt;
   const byCat = {};
   D.expenses.forEach(e => { byCat[e.category] = (byCat[e.category]||0) + (e.amount||0); });
   const cats = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
   box.appendChild(h('div', {class:'card', style:{display:'flex',justifyContent:'space-around'}},
     h('div',{class:'stat'}, h('div',{class:'stat-num'}, '¥'+total.toFixed(0)), h('div',{class:'stat-lbl'},'总费用')),
-    h('div',{class:'stat'}, h('div',{class:'stat-num'}, D.expenses.length), h('div',{class:'stat-lbl'},'记录数')),
+    h('div',{class:'stat'}, h('div',{class:'stat-num',style:{color:'#137333'}}, '¥'+selfAmt.toFixed(0)), h('div',{class:'stat-lbl'},'自费')),
+    h('div',{class:'stat'}, h('div',{class:'stat-num',style:{color:'#1a73e8'}}, '¥'+insuredAmt.toFixed(0)), h('div',{class:'stat-lbl'},'医保')),
   ));
   if (cats.length) {
     const maxC = cats[0][1];
@@ -725,8 +745,18 @@ function showModal(title, body, onSave) {
 function modalProfile() {
   const p = D.profile || { lmp:'', edd:'', age:'', height:'', preWeight:'', riskFactors:'' };
   const body = h('div', {},
-    h('label',{class:'lbl'},'末次月经日期（实际日期）'), h('input',{class:'inp',type:'date',id:'f_lmp',value:p.lmp}),
-    h('label',{class:'lbl'},'预产期'), h('input',{class:'inp',type:'date',id:'f_edd',value:p.edd}),
+    h('label',{class:'lbl'},'末次月经日期（填了自动算预产期和孕周）'), h('input',{class:'inp',type:'date',id:'f_lmp',value:p.lmp,onchange:()=>{
+      const v = (document.getElementById('f_lmp')||{}).value;
+      const eddEl = document.getElementById('f_edd');
+      if (v && eddEl) {
+        const d = new Date(v); d.setDate(d.getDate() + 280);
+        eddEl.value = d.toISOString().slice(0,10);
+        const now = new Date(); const days = Math.floor((now - new Date(v)) / 86400000);
+        if (days >= 0) { const w = Math.floor(days/7), dy = days%7; (document.getElementById('f_weekinfo')||{}).textContent = '当前孕周：' + w + '周+' + dy + '天'; }
+      }
+    }}),
+    h('div', {id:'f_weekinfo', style:{fontSize:'12px',color:'#1a73e8',marginBottom:'6px'}}),
+    h('label',{class:'lbl'},'预产期（自动计算，可修改）'), h('input',{class:'inp',type:'date',id:'f_edd',value:p.edd}),
     h('label',{class:'lbl'},'年龄'), h('input',{class:'inp',type:'number',id:'f_age',value:p.age,placeholder:'岁'}),
     h('label',{class:'lbl'},'身高(cm)'), h('input',{class:'inp',type:'number',id:'f_height',value:p.height,placeholder:'cm'}),
     h('label',{class:'lbl'},'孕前体重(kg)'), h('input',{class:'inp',type:'number',id:'f_pw',value:p.preWeight,placeholder:'kg'}),
@@ -741,8 +771,13 @@ function modalProfile() {
 function modalRecord(rec) {
   const r = rec || { id:'', date:new Date().toISOString().slice(0,10), week:'', hospital:'', doctor:'', items:{}, notes:'' };
   const body = h('div', {},
-    h('label',{class:'lbl'},'检查日期（以检查单实际日期为准）'), h('input',{class:'inp',type:'date',id:'r_date',value:r.date}),
-    h('label',{class:'lbl'},'孕周'), h('input',{class:'inp',id:'r_week',value:r.week,placeholder:'如：12周+3天'}),
+    h('label',{class:'lbl'},'检查日期（以检查单实际日期为准）'), h('input',{class:'inp',type:'date',id:'r_date',value:r.date,onchange:()=>{
+      const dv = (document.getElementById('r_date')||{}).value;
+      const wk = calcWeekAt(dv);
+      const wEl = document.getElementById('r_week');
+      if (wk && wEl) { wEl.value = wk; }
+    }}),
+    h('label',{class:'lbl'},'孕周（按末次月经自动计算，可修改）'), h('input',{class:'inp',id:'r_week',value:r.week,placeholder:'如：12周+3天'}),
     h('label',{class:'lbl'},'医院'), h('input',{class:'inp',id:'r_hos',value:r.hospital}),
     h('label',{class:'lbl'},'医生'), h('input',{class:'inp',id:'r_doc',value:r.doctor}),
     h('div',{class:'card-title',style:{marginTop:'8px'}},'检查项目（可只填做了的）'));
@@ -983,11 +1018,12 @@ function parseItemsJson(text) {
     const items = j.items || j;
     const out = {};
     for (const k in items) { const v = items[k]; if (v !== null && v !== '' && v !== undefined) out[k] = v; }
+    const date = j.date || '';
     const exp = (j.expense && j.expense.amount) ? j.expense : null;
     const refs = j.refs || {};
     const refOut = {};
     for (const k in refs) { const v = refs[k]; if (v !== null && v !== '' && v !== undefined) refOut[k] = String(v); }
-    return { items: out, expense: exp, refs: refOut };
+    return { items: out, expense: exp, refs: refOut, date: date };
   } catch(e) { return null; }
 }
 async function visionRecognize(file, pdfText) {
@@ -998,7 +1034,7 @@ async function visionRecognize(file, pdfText) {
   try {
     const base64 = file ? await compressImage(file) : null;
     const prompt = '你是一位医学检验单识别助手。请识别这张孕期检查单/化验单/彩超报告上的所有检查项目、结果数值、参考值范围，以及费用信息。' +
-      '严格输出JSON格式（不要任何其他文字）：{"items":{"项目名称":结果数值},"refs":{"项目名称":"参考范围如 3.5-5.1 或 阴性/阳性"},"expense":{"amount":金额数字,"note":"费用说明"}}。' +
+      '严格输出JSON格式（不要任何其他文字）：{"date":"检查单上的送检/采集日期如2026-08-20","items":{"项目名称":结果数值},"refs":{"项目名称":"参考范围如 3.5-5.1 或 阴性/阳性"},"expense":{"amount":金额数字,"note":"费用说明"}}。' +
       '要求：项目名称用中文（如"收缩压""血红蛋白""双顶径"），结果数值保持原样如"120/80"或"5.2"。' +
       '重点：报告单上通常有"参考值/参考范围/正常值"一列，必须把这一列提取到refs里（如"3.5-5.1""<5.1""阴性"），每个项目都要有refs；如果单据上没有参考值列则refs可以为空对象。' +
       '如果是费用票据（缴费单/收据/发票），items输出空对象{}，只提取expense。票据上常有多个金额：医保统筹支付、现金、POS、支付宝/微信、医保账户等。expense.amount必须填"实际支付金额"=支付宝/微信/现金/POS等支付方式的金额（不是统筹报销！）。note填支付方式名。如果是检验单则expense填null。' +
@@ -1014,7 +1050,7 @@ async function visionRecognize(file, pdfText) {
       showModal('🤖 AI 识别结果', body, null);
       return;
     }
-    showVisionConfirm(parsed.items, parsed.expense, parsed.refs);
+    showVisionConfirm(parsed.items, parsed.expense, parsed.refs, parsed.date);
   } catch(e) {
     box.remove();
     alert('识别失败：' + (e.message || e) + '\n\n提示：\n1. 检查网络\n2. 确认设置了视觉识别 Key\n3. 若为浏览器打开，需用 APK 版或本机服务器版');
@@ -1030,13 +1066,18 @@ function collectVisionExpense() {
   if (!amtEl || !amtEl.value) return null;
   return { id: uid(), date: new Date().toISOString().slice(0,10), category: (document.getElementById('vx_exp_cat')||{}).value || '检查费', amount: parseFloat(amtEl.value) || 0, selfPaid: false, note: (document.getElementById('vx_exp_note')||{}).value || '' };
 }
-function showVisionConfirm(items, expense, refs) {
+function showVisionConfirm(items, expense, refs, date) {
   refs = refs || {};
   const found = Object.keys(items);
   const hasExp = !!(expense && expense.amount);
+  const defDate = date || new Date().toISOString().slice(0,10);
   const body = h('div', {},
-    h('b', {style:{fontSize:'16px'}}, '🔍 AI 识别到 ' + found.length + ' 项' + (hasExp ? ' + 💰费用' : '')),
-    h('div', {style:{fontSize:'11px',color:'#94a3b8',margin:'4px 0 8px'}}, '请核对修改数值（AI识别可能有误差）：'),
+    h('div', {style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'8px'}},
+      h('b', {style:{fontSize:'16px'}}, '🔍 AI 识别到 ' + found.length + ' 项' + (hasExp ? ' + 💰费用' : '')),
+      h('button', {style:{background:'none',border:'none',fontSize:'20px',cursor:'pointer',color:'#80868b'}, onclick:()=>ov.remove()}, '×')),
+    h('div', {class:'row', style:{marginBottom:'8px'}},
+      h('div', {class:'col'}, h('label',{class:'lbl'},'检查日期（以检查单送检日期为准）'), h('input',{class:'inp',type:'date',id:'vx_date',value:defDate}))),
+    h('div', {style:{fontSize:'11px',color:'#94a3b8',margin:'0 0 8px'}}, '请核对修改数值（AI识别可能有误差）：'),
     ...found.map(k => h('div', {class:'row', style:{marginBottom:'4px'}},
       h('label',{class:'lbl',style:{minWidth:'90px',flex:'none',alignSelf:'center'}}, k),
       h('input',{class:'inp',style:{flex:1},id:'vx_'+k,value:items[k]}),
@@ -1049,11 +1090,11 @@ function showVisionConfirm(items, expense, refs) {
       h('label',{class:'lbl'},'备注'), h('input',{class:'inp',id:'vx_exp_note',value:(expense.note||'').slice(0,60)}),
     ) : null,
     h('div', {style:{display:'flex',gap:'8px',marginTop:'10px'}},
-      h('button', {class:'btn btn-s', onclick:()=>{ modalVisionDate(body, found, expense, refs); }}, '下一步 ⏭'),
+      h('button', {class:'btn btn-s', onclick:()=>{ modalVisionDate(body, found, expense, refs, date); }}, '下一步 ⏭'),
       h('button', {class:'btn btn-p', onclick:()=>{
         const finalItems = collectVisionItems(found);
         const exp = collectVisionExpense();
-        const r = { id: uid(), date: new Date().toISOString().slice(0,10), week:'', hospital:'', doctor:'', items: finalItems, refs: refs, notes: 'AI拍照识别导入' };
+        const r = { id: uid(), date: (document.getElementById('vx_date')||{}).value || defDate, week:'', hospital:'', doctor:'', items: finalItems, refs: refs, notes: 'AI拍照识别导入' };
         D.records.push(r);
         if (exp) D.expenses.push(exp);
         save(); render(); alert('✅ 已保存 ' + found.length + ' 项' + (exp ? ' + 费用¥' + exp.amount : '') + '，可在「检查记录」中编辑！');
@@ -1062,16 +1103,26 @@ function showVisionConfirm(items, expense, refs) {
   document.body.appendChild(ov);
 }
 // 拍照识别第二步：确认日期/孕周后保存
-function modalVisionDate(body, found, expense, refs) {
+function modalVisionDate(body, found, expense, refs, date) {
   const finalItems = collectVisionItems(found);
+  const defDate = date || new Date().toISOString().slice(0,10);
   const body2 = h('div', {},
-    h('div', {style:{fontSize:'12px',color:'#64748b',marginBottom:'8px'}}, '补充检查日期和孕周（可跳过）：'),
-    h('label',{class:'lbl'},'检查日期'), h('input',{class:'inp',type:'date',id:'vd_date',value:new Date().toISOString().slice(0,10)}),
-    h('label',{class:'lbl'},'孕周'), h('input',{class:'inp',id:'vd_week',placeholder:'如：24周+3天'}),
+    h('div', {style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'8px'}},
+      h('b', {style:{fontSize:'16px'}}, '📅 补充检查信息'),
+      h('button', {style:{background:'none',border:'none',fontSize:'20px',cursor:'pointer',color:'#80868b'}, onclick:()=>ov2.remove()}, '×')),
+    h('div', {style:{fontSize:'12px',color:'#64748b',marginBottom:'8px'}}, '检查日期已按检查单送检日期自动填入，可修改：'),
+    h('label',{class:'lbl'},'检查日期'), h('input',{class:'inp',type:'date',id:'vd_date',value:defDate,onchange:()=>{
+      const dv = (document.getElementById('vd_date')||{}).value;
+      const wk = calcWeekAt(dv);
+      const wEl = document.getElementById('vd_week');
+      if (wk && wEl && !wEl.value) { wEl.value = wk; }
+      else if (wk && wEl) { wEl.value = wk; }
+    }}),
+    h('label',{class:'lbl'},'孕周（按末次月经自动计算，可修改）'), h('input',{class:'inp',id:'vd_week',placeholder:'如：24周+3天'}),
     h('div', {style:{display:'flex',gap:'8px',marginTop:'10px'}},
       h('button', {class:'btn btn-s', onclick:()=>ov2.remove()}, '返回'),
       h('button', {class:'btn btn-p', onclick:()=>{
-        const r = { id: uid(), date:(document.getElementById('vd_date')||{}).value||new Date().toISOString().slice(0,10), week:(document.getElementById('vd_week')||{}).value||'', hospital:'', doctor:'', items: finalItems, refs: refs||{}, notes: 'AI拍照识别导入' };
+        const r = { id: uid(), date:(document.getElementById('vd_date')||{}).value||defDate, week:(document.getElementById('vd_week')||{}).value||'', hospital:'', doctor:'', items: finalItems, refs: refs||{}, notes: 'AI拍照识别导入' };
         D.records.push(r);
         const exp = collectVisionExpense();
         if (exp) { exp.date = r.date; D.expenses.push(exp); }
@@ -1080,22 +1131,6 @@ function modalVisionDate(body, found, expense, refs) {
   const ov2 = h('div', {class:'modal-ov'}, h('div', {class:'modal'}, body2));
   document.body.appendChild(ov2);
 }
-// ========== 底部安全区兜底 ==========
-function fixLayout() {
-  const app = document.getElementById('app');
-  const tabs = document.getElementById('tabs');
-  const content = document.getElementById('content');
-  if (!app || !tabs || !content) return;
-  // 动态视口高度
-  const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-  app.style.height = vh + 'px';
-  // 确保 tabs 可见：content 弹性收缩
-  const tabsH = tabs.offsetHeight;
-  content.style.maxHeight = (vh - tabsH - 80) + 'px';
-}
-window.addEventListener('resize', fixLayout);
-window.addEventListener('load', fixLayout);
-setTimeout(fixLayout, 300);
 // ========== 初始化 ==========
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
