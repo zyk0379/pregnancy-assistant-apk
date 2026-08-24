@@ -12,14 +12,14 @@
 <title>🤰 孕期管理助手</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; background: #f8fafc; color: #1e293b; font-size: 14px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+html, body { height: 100%; } body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; background: #f8fafc; color: #1e293b; font-size: 14px; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
 #app { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 .header { background: linear-gradient(135deg, #f0c6dc, #fbe8f1); padding: 14px 16px; text-align: center; flex-shrink: 0; }
 .header h1 { font-size: 17px; color: #8b5e7a; }
 .header .sub { font-size: 12px; color: #a0708a; margin-top: 3px; }
-.content { flex: 1; overflow-y: auto; padding: 12px; -webkit-overflow-scrolling: touch; }
-.tabs { display: flex; background: #fff; border-top: 1px solid #e2e8f0; flex-shrink: 0; overflow-x: auto; }
-.tab { flex: 1; min-width: 46px; text-align: center; padding: 7px 2px 6px; font-size: 10px; border: none; background: none; color: #64748b; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.content { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; padding-bottom: 20px; -webkit-overflow-scrolling: touch; }
+.tabs { display: flex; background: #fff; border-top: 1px solid #e2e8f0; flex-shrink: 0; overflow-x: auto; padding-bottom: env(safe-area-inset-bottom, 0px); }
+.tab { flex: 1; min-width: 46px; text-align: center; padding: 10px 2px 12px; font-size: 10px; border: none; background: none; color: #64748b; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px; }
 .tab.active { color: #c4628a; font-weight: 600; }
 .tab .ic { font-size: 19px; }
 .card { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
@@ -849,14 +849,14 @@ async function callZhipuVision(base64Img, prompt) {
   return (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '';
 }
 function parseItemsJson(text) {
-  // 去掉 markdown 代码块标记
   let t = String(text).replace(/```json|```/g, '').trim();
   try {
     const j = JSON.parse(t);
     const items = j.items || j;
     const out = {};
     for (const k in items) { const v = items[k]; if (v !== null && v !== '' && v !== undefined) out[k] = v; }
-    return out;
+    const exp = (j.expense && j.expense.amount) ? j.expense : null;
+    return { items: out, expense: exp };
   } catch(e) { return null; }
 }
 async function visionRecognize(file, pdfText) {
@@ -866,15 +866,15 @@ async function visionRecognize(file, pdfText) {
   document.body.appendChild(box);
   try {
     const base64 = file ? await compressImage(file) : null;
-    const prompt = '你是一位医学检验单识别助手。请识别这张孕期检查单/化验单/彩超报告上的所有检查项目和数值。' +
-      '严格输出JSON格式（不要任何其他文字）：{"items":{"项目名称":数值或文本}}。' +
-      '要求：项目名称用中文（如"收缩压""血红蛋白""双顶径"），数值保持原样带单位说明如"120/80"或"5.2"。' +
+    const prompt = '你是一位医学检验单识别助手。请识别这张孕期检查单/化验单/彩超报告上的所有检查项目和数值，以及费用信息。' +
+      '严格输出JSON格式（不要任何其他文字）：{"items":{"项目名称":数值或文本},"expense":{"amount":金额数字,"note":"费用说明"}}。' +
+      '要求：项目名称用中文（如"收缩压""血红蛋白""双顶径"），数值保持原样如"120/80"或"5.2"。' +
+      '如果单据上有金额/费用信息（如"应收350元""检查费200元""挂号费50元"）就填入expense，没有则expense填null。' +
       (pdfText ? '同时参考以下PDF提取文字辅助识别（可能是乱序文本）：' + pdfText.slice(0,1500) : '');
     let raw = await callZhipuVision(base64, prompt);
     box.remove();
-    const items = parseItemsJson(raw);
-    if (!items || !Object.keys(items).length) {
-      // 展示原始返回，让用户手动提取或复制
+    const parsed = parseItemsJson(raw);
+    if (!parsed || !Object.keys(parsed.items).length) {
       const body = h('div', {},
         h('div', {style:{fontSize:'12px',color:'#64748b',marginBottom:'6px'}}, 'AI 未能自动提取结构化数据，以下是识别文本（可复制或编辑）：'),
         h('textarea', {class:'inp', style:{height:'180px'}}, raw),
@@ -882,36 +882,54 @@ async function visionRecognize(file, pdfText) {
       showModal('🤖 AI 识别结果', body, null);
       return;
     }
-    showVisionConfirm(items);
+    showVisionConfirm(parsed.items, parsed.expense);
   } catch(e) {
     box.remove();
     alert('识别失败：' + (e.message || e) + '\n\n提示：\n1. 检查网络\n2. 确认设置了视觉识别 Key\n3. 若为浏览器打开，需用 APK 版或本机服务器版');
   }
 }
-function showVisionConfirm(items) {
+function collectVisionItems(found) {
+  const finalItems = {};
+  found.forEach(k => { const el = document.getElementById('vx_'+k); if (el && el.value !== '') { const n = parseFloat(el.value); finalItems[k] = isNaN(n)?el.value:n; } });
+  return finalItems;
+}
+function collectVisionExpense() {
+  const amtEl = document.getElementById('vx_exp_amt');
+  if (!amtEl || !amtEl.value) return null;
+  return { id: uid(), date: new Date().toISOString().slice(0,10), category: (document.getElementById('vx_exp_cat')||{}).value || '检查费', amount: parseFloat(amtEl.value) || 0, selfPaid: false, note: (document.getElementById('vx_exp_note')||{}).value || '' };
+}
+function showVisionConfirm(items, expense) {
   const found = Object.keys(items);
+  const hasExp = !!(expense && expense.amount);
   const body = h('div', {},
-    h('b', {style:{fontSize:'16px'}}, '🔍 AI 识别到 ' + found.length + ' 项'),
+    h('b', {style:{fontSize:'16px'}}, '🔍 AI 识别到 ' + found.length + ' 项' + (hasExp ? ' + 💰费用' : '')),
     h('div', {style:{fontSize:'11px',color:'#94a3b8',margin:'4px 0 8px'}}, '请核对修改数值（AI识别可能有误差）：'),
     ...found.map(k => h('div', {class:'row', style:{marginBottom:'4px'}},
       h('label',{class:'lbl',style:{minWidth:'90px',flex:'none',alignSelf:'center'}}, k),
       h('input',{class:'inp',style:{flex:1},id:'vx_'+k,value:items[k]}))),
+    hasExp ? h('div', {style:{marginTop:'8px',paddingTop:'10px',borderTop:'1px solid #f1f5f9'}},
+      h('b', {style:{fontSize:'14px'}}, '💰 识别到费用（可修改）'),
+      h('div', {class:'row', style:{marginTop:'6px'}},
+        h('div', {class:'col'}, h('label',{class:'lbl'},'金额(元)'), h('input',{class:'inp',type:'number',id:'vx_exp_amt',value:expense.amount})),
+        h('div', {class:'col'}, h('label',{class:'lbl'},'类别'), h('select',{class:'inp',id:'vx_exp_cat'}, ...['挂号费','检查费','B超费','化验费','药品费','其他'].map(c=>h('option',{value:c,selected:c===(expense.note||'')},c))))),
+      h('label',{class:'lbl'},'备注'), h('input',{class:'inp',id:'vx_exp_note',value:(expense.note||'').slice(0,60)}),
+    ) : null,
     h('div', {style:{display:'flex',gap:'8px',marginTop:'10px'}},
-      h('button', {class:'btn btn-s', onclick:()=>{ modalVisionDate(body, found); }}, '下一步 ⏭'),
+      h('button', {class:'btn btn-s', onclick:()=>{ modalVisionDate(body, found, expense); }}, '下一步 ⏭'),
       h('button', {class:'btn btn-p', onclick:()=>{
-        const finalItems = {};
-        found.forEach(k => { const el = document.getElementById('vx_'+k); if (el && el.value !== '') { const n = parseFloat(el.value); finalItems[k] = isNaN(n)?el.value:n; } });
+        const finalItems = collectVisionItems(found);
+        const exp = collectVisionExpense();
         const r = { id: uid(), date: new Date().toISOString().slice(0,10), week:'', hospital:'', doctor:'', items: finalItems, notes: 'AI拍照识别导入' };
-        D.records.push(r); save(); render(); alert('✅ 已保存 ' + found.length + ' 项，可在「检查记录」中编辑！');
+        D.records.push(r);
+        if (exp) D.expenses.push(exp);
+        save(); render(); alert('✅ 已保存 ' + found.length + ' 项' + (exp ? ' + 费用¥' + exp.amount : '') + '，可在「检查记录」中编辑！');
       }}, '💾 直接保存')));
   const ov = h('div', {class:'modal-ov'}, h('div', {class:'modal'}, body));
   document.body.appendChild(ov);
 }
 // 拍照识别第二步：确认日期/孕周后保存
-function modalVisionDate(body, found) {
-  // 复用 showVisionConfirm 的数据——简单处理：读取当前输入框
-  const finalItems = {};
-  found.forEach(k => { const el = document.getElementById('vx_'+k); if (el && el.value !== '') { const n = parseFloat(el.value); finalItems[k] = isNaN(n)?el.value:n; } });
+function modalVisionDate(body, found, expense) {
+  const finalItems = collectVisionItems(found);
   const body2 = h('div', {},
     h('div', {style:{fontSize:'12px',color:'#64748b',marginBottom:'8px'}}, '补充检查日期和孕周（可跳过）：'),
     h('label',{class:'lbl'},'检查日期'), h('input',{class:'inp',type:'date',id:'vd_date',value:new Date().toISOString().slice(0,10)}),
@@ -920,7 +938,10 @@ function modalVisionDate(body, found) {
       h('button', {class:'btn btn-s', onclick:()=>ov2.remove()}, '返回'),
       h('button', {class:'btn btn-p', onclick:()=>{
         const r = { id: uid(), date:(document.getElementById('vd_date')||{}).value||new Date().toISOString().slice(0,10), week:(document.getElementById('vd_week')||{}).value||'', hospital:'', doctor:'', items: finalItems, notes: 'AI拍照识别导入' };
-        D.records.push(r); save(); render(); alert('✅ 已保存 ' + found.length + ' 项！');
+        D.records.push(r);
+        const exp = collectVisionExpense();
+        if (exp) { exp.date = r.date; D.expenses.push(exp); }
+        save(); render(); alert('✅ 已保存 ' + found.length + ' 项' + (exp ? ' + 费用¥' + exp.amount : '') + '！');
       }}, '💾 保存')));
   const ov2 = h('div', {class:'modal-ov'}, h('div', {class:'modal'}, body2));
   document.body.appendChild(ov2);
