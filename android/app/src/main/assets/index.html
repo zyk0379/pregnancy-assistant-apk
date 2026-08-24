@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#c4628a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -12,13 +12,13 @@
 <title>🤰 孕期管理助手</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-html, body { height: 100%; } body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; background: #f8fafc; color: #1e293b; font-size: 14px; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+html, body { height: 100%; } body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; background: #f8fafc; color: #1e293b; font-size: 14px; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
 #app { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 .header { background: linear-gradient(135deg, #f0c6dc, #fbe8f1); padding: 14px 16px; text-align: center; flex-shrink: 0; }
 .header h1 { font-size: 17px; color: #8b5e7a; }
 .header .sub { font-size: 12px; color: #a0708a; margin-top: 3px; }
 .content { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; padding-bottom: 20px; -webkit-overflow-scrolling: touch; }
-.tabs { display: flex; background: #fff; border-top: 1px solid #e2e8f0; flex-shrink: 0; overflow-x: auto; padding-bottom: env(safe-area-inset-bottom, 0px); }
+.tabs { display: flex; background: #fff; border-top: 1px solid #e2e8f0; flex-shrink: 0; overflow-x: auto; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 2px); }
 .tab { flex: 1; min-width: 46px; text-align: center; padding: 10px 2px 12px; font-size: 10px; border: none; background: none; color: #64748b; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px; }
 .tab.active { color: #c4628a; font-weight: 600; }
 .tab .ic { font-size: 19px; }
@@ -952,6 +952,22 @@ function modalVisionDate(body, found, expense) {
   const ov2 = h('div', {class:'modal-ov'}, h('div', {class:'modal'}, body2));
   document.body.appendChild(ov2);
 }
+// ========== 底部安全区兜底 ==========
+function fixLayout() {
+  const app = document.getElementById('app');
+  const tabs = document.getElementById('tabs');
+  const content = document.getElementById('content');
+  if (!app || !tabs || !content) return;
+  // 动态视口高度
+  const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  app.style.height = vh + 'px';
+  // 确保 tabs 可见：content 弹性收缩
+  const tabsH = tabs.offsetHeight;
+  content.style.maxHeight = (vh - tabsH - 80) + 'px';
+}
+window.addEventListener('resize', fixLayout);
+window.addEventListener('load', fixLayout);
+setTimeout(fixLayout, 300);
 // ========== 初始化 ==========
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
