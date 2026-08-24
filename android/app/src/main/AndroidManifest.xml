@@ -5,7 +5,7 @@
 
     <application
         android:label="孕期管理助手"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@drawable/ic_launcher"
         android:allowBackup="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
