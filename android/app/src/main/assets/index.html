@@ -138,7 +138,7 @@ const KEY = 'preg_assist_v1';
 let D = load();
 function load() {
   try { const r = JSON.parse(localStorage.getItem(KEY)); if (r) return r; } catch(e){}
-  return { profile: null, records: [], expenses: [], settings: { apiKey: '' } };
+  return { profile: null, records: [], expenses: [], settings: { apiKey: '', visionKey: '7bb5d14a688646c184203124a4e5dd41.sp3phdIxlOCUYUHQ' } };
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch(e){} }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
@@ -372,9 +372,13 @@ function viewChecklist() {
 // ========== 检查记录 ==========
 function viewRecords() {
   const box = h('div', {});
-  box.appendChild(h('div', {style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}},
+  box.appendChild(h('div', {style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px',flexWrap:'wrap',gap:'6px'}},
     h('div', {class:'card-title', style:{margin:0}}, '📝 检查记录'),
-    h('button', {class:'btn btn-p btn-xs', onclick:()=>modalRecord(null)}, '+ 添加记录'),
+    h('div', {style:{display:'flex',gap:'6px'}},
+      h('button', {class:'btn btn-s btn-xs', onclick:openVisionImport}, '📷 拍照识别'),
+      h('button', {class:'btn btn-s btn-xs', onclick:openPdfImport}, '📄 PDF导入'),
+      h('button', {class:'btn btn-p btn-xs', onclick:()=>modalRecord(null)}, '+ 添加记录'),
+    ),
   ));
   const sorted = D.records.slice().sort((a,b)=>b.date.localeCompare(a.date));
   if (!sorted.length) box.appendChild(h('div', {class:'empty'}, '暂无检查记录，点击右上角「+ 添加记录」开始'));
@@ -668,7 +672,9 @@ function modalExpense(exp) {
 }
 function modalSettings() {
   const body = h('div', {},
-    h('div',{style:{fontSize:'12px',color:'#64748b',marginBottom:'8px'}},'填入 DeepSeek API Key 可启用深度AI解读。注册：platform.deepseek.com（免费额度）。留空则使用内置规则引擎。'),
+    h('div',{style:{fontSize:'12px',color:'#64748b',marginBottom:'8px'}},'🔍 视觉识别 Key（智谱开放平台免费获取 platform.open.bigmodel.cn）：用于拍照/扫描件识别检查单。'),
+    h('label',{class:'lbl'},'智谱 API Key'), h('input',{class:'inp',id:'s_vkey',value:(D.settings||{}).visionKey||'',placeholder:'xxx.xxx'}),
+    h('div',{style:{fontSize:'12px',color:'#64748b',marginBottom:'8px'}},'🤖 DeepSeek API Key：用于深度AI解读（platform.deepseek.com，免费额度）。留空则用内置规则引擎。'),
     h('label',{class:'lbl'},'DeepSeek API Key'), h('input',{class:'inp',id:'s_key',value:(D.settings||{}).apiKey||'',placeholder:'sk-...'}),
     h('div', {style:{display:'flex',gap:'8px'}},
       h('button',{class:'btn btn-d btn-xs',onclick:()=>{ if(confirm('确定清空全部数据？')){ localStorage.removeItem(KEY); location.reload(); } }},'🗑 清空全部数据'),
@@ -679,7 +685,8 @@ function modalSettings() {
   // 文件导入
   showModal('⚙️ 设置与备份', body, () => {
     const k = (document.getElementById('s_key')||{}).value || '';
-    D.settings = D.settings||{}; D.settings.apiKey = k; save();
+    const vk = (document.getElementById('s_vkey')||{}).value || '';
+    D.settings = D.settings||{}; D.settings.apiKey = k; D.settings.visionKey = vk; save();
     const fi = document.getElementById('s_import');
     if (fi && fi.files && fi.files[0]) {
       const fr = new FileReader();
@@ -687,6 +694,236 @@ function modalSettings() {
       fr.readAsText(fi.files[0]);
     }
   });
+}
+// ========== PDF 导入识别 ==========
+// 正则提取表：项目名 → 匹配模式（兼容各种写法）
+const PDF_EXTRACT_RULES = [
+  { name:'收缩压', pat:/收缩压|血压(?!计)|SBP/i, num:/(\d{2,3})\s*[\/\/]\s*(\d{2,3})/, use:v=>v[1] },
+  { name:'舒张压', pat:/舒张压|血压(?!计)|DBP/i, num:/(\d{2,3})\s*[\/\/]\s*(\d{2,3})/, use:v=>v[2] },
+  { name:'空腹血糖', pat:/空腹血糖|FBG|FPG/i, num:/(\d+\.?\d*)/, use:v=>v[1] },
+  { name:'OGTT 1h血糖', pat:/餐后1\s*小时|1\s*h\s*血糖|OGTT1/i, num:/(\d+\.?\d*)/, use:v=>v[1] },
+  { name:'OGTT 2h血糖', pat:/餐后2\s*小时|2\s*h\s*血糖|OGTT2/i, num:/(\d+\.?\d*)/, use:v=>v[1] },
+  { name:'血红蛋白', pat:/血红蛋白|HGB|Hb/i, num:/(\d{2,3})/, use:v=>v[1] },
+  { name:'NT值', pat:/NT\s*值|颈后透明|NT/i, num:/(\d+\.?\d*)/, use:v=>v[1] },
+  { name:'羊水指数', pat:/羊水指数|AFI/i, num:/(\d+\.?\d*)/, use:v=>v[1] },
+  { name:'胎心率', pat:/胎心率|胎心|FHR/i, num:/(\d{2,3})/, use:v=>v[1] },
+  { name:'双顶径', pat:/双顶径|BPD/i, num:/(\d+\.?\d*)/, use:v=>v[1] },
+  { name:'股骨长', pat:/股骨长|FL/i, num:/(\d+\.?\d*)/, use:v=>v[1] },
+  { name:'头围', pat:/头围|HC/i, num:/(\d+\.?\d*)/, use:v=>v[1] },
+  { name:'体重', pat:/体重|Wt/i, num:/(\d{2,3}\.?\d*)/, use:v=>v[1] },
+];
+// 加载 pdf.js（CDN，需联网；加载失败提示）
+let pdfjsLoaded = false;
+function loadPdfJs() {
+  return new Promise((resolve, reject) => {
+    if (window.pdfjsLib) { pdfjsLoaded = true; resolve(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; pdfjsLoaded = true; resolve(); };
+    s.onerror = () => reject(new Error('PDF解析库加载失败，请检查网络'));
+    document.head.appendChild(s);
+  });
+}
+function openPdfImport() {
+  const fi = document.createElement('input');
+  fi.type = 'file'; fi.accept = '.pdf,application/pdf';
+  fi.onchange = () => { if (fi.files && fi.files[0]) parsePdf(fi.files[0]); };
+  fi.click();
+}
+async function parsePdf(file) {
+  const box = h('div', {class:'modal-ov'}, h('div', {class:'modal'},
+    h('b', {style:{fontSize:'16px'}}, '⏳ 正在解析PDF...'),
+    h('div', {style:{fontSize:'12px',color:'#64748b',marginTop:'8px'}}, '请稍候，正在提取文字内容')));
+  document.body.appendChild(box);
+  try {
+    await loadPdfJs();
+    const buf = await file.arrayBuffer();
+    const pdf = await window.pdfjsLib.getDocument({ data: buf, disableWorker: true }).promise;
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const tc = await page.getTextContent();
+      text += tc.items.map(it => it.str || '').join(' ') + '\n';
+    }
+    box.remove();
+    if (!text.trim()) { alert('未从PDF中提取到文字。若为扫描件（图片型PDF），暂不支持识别，可手动录入。'); return; }
+    showPdfResult(file.name, text);
+  } catch(e) {
+    box.remove();
+    alert('PDF解析失败：' + (e.message || e) + '\n\n提示：电子版PDF可提取文字；扫描件（图片）暂不支持。');
+  }
+}
+// 从文本中提取检查项目
+function extractItems(text) {
+  const items = {};
+  for (const rule of PDF_EXTRACT_RULES) {
+    // 找到含项目名的行/段，取其附近数值
+    const lines = text.split(/[\n\r]/);
+    for (const line of lines) {
+      if (rule.pat.test(line)) {
+        const m = line.match(rule.num);
+        if (m) { items[rule.name] = rule.use(m); break; }
+      }
+    }
+  }
+  return items;
+}
+function showPdfResult(filename, text) {
+  const body = h('div', {},
+    h('div', {style:{fontSize:'12px',color:'#64748b',marginBottom:'6px'}}, '📄 ' + filename + '（' + text.length + '字）——提取的文字可编辑：'),
+    h('textarea', {class:'inp', id:'pdf_text', style:{height:'140px',resize:'vertical',fontSize:'11px'}}, text),
+    h('div', {style:{display:'flex',gap:'6px',margin:'4px 0 8px'}},
+      h('button', {class:'btn btn-p btn-xs', onclick:()=>{
+        const t = (document.getElementById('pdf_text')||{}).value || '';
+        const items = extractItems(t);
+        const found = Object.keys(items);
+        if (!found.length) { alert('未识别到已知检查项目。可手动编辑文字，或直接用「保存为备注」。'); return; }
+        const box2 = h('div', {class:'modal-ov'}, h('div', {class:'modal'},
+          h('b', {style:{fontSize:'16px'}}, '🔍 识别结果确认'),
+          h('div', {style:{fontSize:'11px',color:'#94a3b8',margin:'4px 0 8px'}}, '自动提取到 ' + found.length + ' 项，请核对（可修改数值）：'),
+          ...found.map(k => h('div', {class:'row', style:{marginBottom:'4px'}},
+            h('label',{class:'lbl',style:{minWidth:'90px',flex:'none',alignSelf:'center'}}, k),
+            h('input',{class:'inp',style:{flex:1},id:'ex_'+k,value:items[k]}))),
+          h('div', {style:{display:'flex',gap:'8px',marginTop:'10px'}},
+            h('button', {class:'btn btn-s', onclick:()=>box2.remove()}, '返回'),
+            h('button', {class:'btn btn-p', onclick:()=>{
+              const finalItems = {};
+              found.forEach(k => { const el = document.getElementById('ex_'+k); if (el && el.value !== '') { const n = parseFloat(el.value); finalItems[k] = isNaN(n)?el.value:n; } });
+              const r = { id: uid(), date: new Date().toISOString().slice(0,10), week:'', hospital:'', doctor:'', items: finalItems, notes: '从PDF导入：' + filename };
+              D.records.push(r); save(); render(); box2.remove(); alert('✅ 已保存 ' + found.length + ' 项检查数据，可在「检查记录」中查看编辑！');
+            }}, '💾 保存检查记录'))));
+        document.body.appendChild(box2);
+      }}, '🔍 自动提取项目'),
+      h('button', {class:'btn btn-s btn-xs', onclick:()=>{
+        const t = (document.getElementById('pdf_text')||{}).value || '';
+        const r = { id: uid(), date: new Date().toISOString().slice(0,10), week:'', hospital:'', doctor:'', items:{}, notes: '📄 PDF原文：\n' + t.slice(0,1500) };
+        D.records.push(r); save(); render(); alert('✅ 已保存为备注（含PDF文字），可编辑补充数值！');
+      }}, '💾 保存为备注'),
+    ),
+  );
+  showModal('📄 PDF导入', body, null);
+}
+// ========== 视觉识别（智谱 GLM-4V，识别照片/扫描件） ==========
+function openVisionImport() {
+  const key = (D.settings||{}).visionKey || '';
+  if (!key) { alert('请先在「设置」中填入视觉识别 API Key（智谱开放平台免费获取）'); modalSettings(); return; }
+  const fi = document.createElement('input');
+  fi.type = 'file'; fi.accept = 'image/*'; fi.capture = 'environment';
+  fi.onchange = () => { if (fi.files && fi.files[0]) visionRecognize(fi.files[0], null); };
+  fi.click();
+}
+// 图片压缩（拍照图可能很大，压缩到最长边1500）
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      let { width, height } = img;
+      const max = 1500;
+      if (Math.max(width, height) > max) {
+        const ratio = max / Math.max(width, height);
+        width = Math.round(width * ratio); height = Math.round(height * ratio);
+      }
+      const cv = document.createElement('canvas');
+      cv.width = width; cv.height = height;
+      cv.getContext('2d').drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(url);
+      resolve(cv.toDataURL('image/jpeg', 0.8));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+// 调智谱 GLM-4V
+async function callZhipuVision(base64Img, prompt) {
+  const key = (D.settings||{}).visionKey || '';
+  const p = (D.settings||{}).visionProxy || '';
+  const url = p ? (location.origin + '/zhipu-proxy') : 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
+  const body = { model: 'glm-4v-flash', messages: [{ role: 'user', content: [
+    { type: 'text', text: prompt },
+    { type: 'image_url', image_url: { url: base64Img } }
+  ]}], max_tokens: 1500, temperature: 0.1 };
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: JSON.stringify(body) });
+  if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error('API错误 ' + r.status + ': ' + (j.error ? JSON.stringify(j.error).slice(0,100) : '')); }
+  const j = await r.json();
+  return (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || '';
+}
+function parseItemsJson(text) {
+  // 去掉 markdown 代码块标记
+  let t = String(text).replace(/```json|```/g, '').trim();
+  try {
+    const j = JSON.parse(t);
+    const items = j.items || j;
+    const out = {};
+    for (const k in items) { const v = items[k]; if (v !== null && v !== '' && v !== undefined) out[k] = v; }
+    return out;
+  } catch(e) { return null; }
+}
+async function visionRecognize(file, pdfText) {
+  const box = h('div', {class:'modal-ov'}, h('div', {class:'modal'},
+    h('b', {style:{fontSize:'16px'}}, '⏳ AI 识别中...'),
+    h('div', {style:{fontSize:'12px',color:'#64748b',marginTop:'8px'}}, '正在让 AI 看懂检查单，请稍候（约10-30秒）')));
+  document.body.appendChild(box);
+  try {
+    const base64 = file ? await compressImage(file) : null;
+    const prompt = '你是一位医学检验单识别助手。请识别这张孕期检查单/化验单/彩超报告上的所有检查项目和数值。' +
+      '严格输出JSON格式（不要任何其他文字）：{"items":{"项目名称":数值或文本}}。' +
+      '要求：项目名称用中文（如"收缩压""血红蛋白""双顶径"），数值保持原样带单位说明如"120/80"或"5.2"。' +
+      (pdfText ? '同时参考以下PDF提取文字辅助识别（可能是乱序文本）：' + pdfText.slice(0,1500) : '');
+    let raw = await callZhipuVision(base64, prompt);
+    box.remove();
+    const items = parseItemsJson(raw);
+    if (!items || !Object.keys(items).length) {
+      // 展示原始返回，让用户手动提取或复制
+      const body = h('div', {},
+        h('div', {style:{fontSize:'12px',color:'#64748b',marginBottom:'6px'}}, 'AI 未能自动提取结构化数据，以下是识别文本（可复制或编辑）：'),
+        h('textarea', {class:'inp', style:{height:'180px'}}, raw),
+        h('div', {style:{fontSize:'11px',color:'#94a3b8'}}, '提示：可把内容手动填入「+ 添加记录」，或用下面按钮保存为备注'));
+      showModal('🤖 AI 识别结果', body, null);
+      return;
+    }
+    showVisionConfirm(items);
+  } catch(e) {
+    box.remove();
+    alert('识别失败：' + (e.message || e) + '\n\n提示：\n1. 检查网络\n2. 确认设置了视觉识别 Key\n3. 若为浏览器打开，需用 APK 版或本机服务器版');
+  }
+}
+function showVisionConfirm(items) {
+  const found = Object.keys(items);
+  const body = h('div', {},
+    h('b', {style:{fontSize:'16px'}}, '🔍 AI 识别到 ' + found.length + ' 项'),
+    h('div', {style:{fontSize:'11px',color:'#94a3b8',margin:'4px 0 8px'}}, '请核对修改数值（AI识别可能有误差）：'),
+    ...found.map(k => h('div', {class:'row', style:{marginBottom:'4px'}},
+      h('label',{class:'lbl',style:{minWidth:'90px',flex:'none',alignSelf:'center'}}, k),
+      h('input',{class:'inp',style:{flex:1},id:'vx_'+k,value:items[k]}))),
+    h('div', {style:{display:'flex',gap:'8px',marginTop:'10px'}},
+      h('button', {class:'btn btn-s', onclick:()=>{ modalVisionDate(body, found); }}, '下一步 ⏭'),
+      h('button', {class:'btn btn-p', onclick:()=>{
+        const finalItems = {};
+        found.forEach(k => { const el = document.getElementById('vx_'+k); if (el && el.value !== '') { const n = parseFloat(el.value); finalItems[k] = isNaN(n)?el.value:n; } });
+        const r = { id: uid(), date: new Date().toISOString().slice(0,10), week:'', hospital:'', doctor:'', items: finalItems, notes: 'AI拍照识别导入' };
+        D.records.push(r); save(); render(); alert('✅ 已保存 ' + found.length + ' 项，可在「检查记录」中编辑！');
+      }}, '💾 直接保存')));
+  const ov = h('div', {class:'modal-ov'}, h('div', {class:'modal'}, body));
+  document.body.appendChild(ov);
+}
+// 拍照识别第二步：确认日期/孕周后保存
+function modalVisionDate(body, found) {
+  // 复用 showVisionConfirm 的数据——简单处理：读取当前输入框
+  const finalItems = {};
+  found.forEach(k => { const el = document.getElementById('vx_'+k); if (el && el.value !== '') { const n = parseFloat(el.value); finalItems[k] = isNaN(n)?el.value:n; } });
+  const body2 = h('div', {},
+    h('div', {style:{fontSize:'12px',color:'#64748b',marginBottom:'8px'}}, '补充检查日期和孕周（可跳过）：'),
+    h('label',{class:'lbl'},'检查日期'), h('input',{class:'inp',type:'date',id:'vd_date',value:new Date().toISOString().slice(0,10)}),
+    h('label',{class:'lbl'},'孕周'), h('input',{class:'inp',id:'vd_week',placeholder:'如：24周+3天'}),
+    h('div', {style:{display:'flex',gap:'8px',marginTop:'10px'}},
+      h('button', {class:'btn btn-s', onclick:()=>ov2.remove()}, '返回'),
+      h('button', {class:'btn btn-p', onclick:()=>{
+        const r = { id: uid(), date:(document.getElementById('vd_date')||{}).value||new Date().toISOString().slice(0,10), week:(document.getElementById('vd_week')||{}).value||'', hospital:'', doctor:'', items: finalItems, notes: 'AI拍照识别导入' };
+        D.records.push(r); save(); render(); alert('✅ 已保存 ' + found.length + ' 项！');
+      }}, '💾 保存')));
+  const ov2 = h('div', {class:'modal-ov'}, h('div', {class:'modal'}, body2));
+  document.body.appendChild(ov2);
 }
 // ========== 初始化 ==========
 if ('serviceWorker' in navigator) {
