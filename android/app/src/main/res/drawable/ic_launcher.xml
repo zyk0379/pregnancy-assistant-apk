@@ -4,10 +4,26 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:fillColor="#c4628a"
-        android:pathData="M54,8a46,46 0 1,0 0.001,0z" />
-    <path
-        android:fillColor="#ffffff"
-        android:pathData="M54,34c-8,-9 -22,-6 -22,6c0,10 22,24 22,24s22,-14 22,-24c0,-12 -14,-15 -22,-6z" />
+    <!-- 背景圆（深粉） -->
+    <path android:fillColor="#f48fb1" android:pathData="M4,54 a50,50 0 1,0 100,0 a50,50 0 1,0 -100,0" />
+    <!-- 背景内圆（浅粉） -->
+    <path android:fillColor="#f8bbd0" android:pathData="M12,54 a42,42 0 1,0 84,0 a42,42 0 1,0 -84,0" />
+    <!-- 头发（棕色大圆，被脸覆盖下半） -->
+    <path android:fillColor="#8d6e63" android:pathData="M24,52 a30,30 0 1,0 60,0 a30,30 0 1,0 -60,0" />
+    <!-- 脸（肤色） -->
+    <path android:fillColor="#ffe0bd" android:pathData="M30,63 a24,24 0 1,0 48,0 a24,24 0 1,0 -48,0" />
+    <!-- 头顶发髻 -->
+    <path android:fillColor="#8d6e63" android:pathData="M46,25 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0" />
+    <path android:fillColor="#a1887f" android:pathData="M49,25 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+    <!-- 眼睛 -->
+    <path android:fillColor="#3e2723" android:pathData="M42,63 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0" />
+    <path android:fillColor="#3e2723" android:pathData="M60,63 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0" />
+    <!-- 眼睛高光 -->
+    <path android:fillColor="#ffffff" android:pathData="M43.5,61.8 a1,1 0 1,0 2,0 a1,1 0 1,0 -2,0" />
+    <path android:fillColor="#ffffff" android:pathData="M61.5,61.8 a1,1 0 1,0 2,0 a1,1 0 1,0 -2,0" />
+    <!-- 腮红 -->
+    <path android:fillColor="#f48fb1" android:pathData="M34,69 a4.5,4.5 0 1,0 9,0 a4.5,4.5 0 1,0 -9,0" />
+    <path android:fillColor="#f48fb1" android:pathData="M65,69 a4.5,4.5 0 1,0 9,0 a4.5,4.5 0 1,0 -9,0" />
+    <!-- 微笑 -->
+    <path android:strokeColor="#e57373" android:strokeWidth="2.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M48,71 Q54,76 60,71" />
 </vector>
