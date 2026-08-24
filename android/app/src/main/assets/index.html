@@ -263,7 +263,7 @@ async function deepseekAsk(prompt, system) {
 }
 // ========== 主渲染 ==========
 let curTab = 'home';
-const APP_VERSION = '1.2.0'; // 当前版本（检查更新用）
+const APP_VERSION = '1.2.1'; // 当前版本（检查更新用）
 const TABS = [
   { id:'home', ic:'🏠', l:'首页' },
   { id:'records', ic:'📝', l:'检查记录' },
@@ -389,6 +389,15 @@ function viewSettingsPage() {
 // ========== 检查更新 ==========
 const UPDATE_URL = 'https://cdn.jsdelivr.net/gh/zyk0379/pregnancy-assistant-apk@main/version.json';
 const APK_URL = 'https://cdn.jsdelivr.net/gh/zyk0379/pregnancy-assistant-apk@main/pregnancy-assistant.apk';
+function verCmp(a, b) {
+  const pa = String(a).split('.').map(Number);
+  const pb = String(b).split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i] || 0, y = pb[i] || 0;
+    if (x !== y) return x > y ? 1 : -1;
+  }
+  return 0;
+}
 function checkUpdate() {
   const st = document.getElementById('update_status');
   if (st) st.textContent = '⏳ 正在检查更新...';
@@ -396,7 +405,7 @@ function checkUpdate() {
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(j => {
       if (!st) return;
-      if (j.version && j.version !== APP_VERSION) {
+      if (j.version && verCmp(j.version, APP_VERSION) > 0) {
         st.innerHTML = '🎉 发现新版本 v' + j.version + '！' + (j.date ? '（' + j.date + '）' : '');
         if (confirm('发现新版本 v' + j.version + '，是否立即下载更新？')) {
           window.open(APK_URL, '_blank');
