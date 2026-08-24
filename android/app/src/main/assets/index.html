@@ -273,7 +273,7 @@ async function deepseekAsk(prompt, system) {
 }
 // ========== 主渲染 ==========
 let curTab = 'home';
-const APP_VERSION = '2.0.0'; // 当前版本（检查更新用）
+const APP_VERSION = '2.0.1'; // 当前版本（检查更新用）
 const TABS = [
   { id:'home', ic:'🏠', l:'首页' },
   { id:'records', ic:'📝', l:'检查记录' },
@@ -283,6 +283,7 @@ const TABS = [
   { id:'settings', ic:'⚙️', l:'设置' },
 ];
 let curSubPage = null; // 设置内二级页面：checklist/diet/know/settings
+let aiState = null; // AI解析状态持久化：{loading:true} 或 {text:'...'}，切换Tab不丢失
 function renderTabs() {
   const box = document.getElementById('tabs'); box.innerHTML = '';
   for (const t of TABS) {
@@ -369,11 +370,29 @@ function viewSettingsPage() {
       h('div', {style:{display:'flex',gap:'8px',flexWrap:'wrap'}},
         h('button', {class:'btn btn-s btn-xs', onclick:()=>{
           const b = JSON.stringify(D, null, 2);
-          const a = document.createElement('a');
-          a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(b);
-          a.download = 'pregnancy-backup-' + new Date().toISOString().slice(0,10) + '.json';
-          a.click();
+          try {
+            const blob = new Blob([b], {type:'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'lumehaoyun-backup-' + new Date().toISOString().slice(0,10) + '.json';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(()=>URL.revokeObjectURL(url), 5000);
+            alert('✅ 已生成备份文件，请检查下载记录。\n若未出现下载，请用「复制备份」方式保存。');
+          } catch(e) { alert('导出失败：' + e.message); }
         }}, '📤 导出备份'),
+        h('button', {class:'btn btn-s btn-xs', onclick:()=>{
+          const b = JSON.stringify(D, null, 2);
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(b).then(()=>{
+              alert('✅ 备份内容已复制到剪贴板！\n请打开备忘录/微信，粘贴并保存为 txt 文件。');
+            }).catch(()=>{ prompt('自动复制失败，请长按下方内容手动复制：', b); });
+          } else {
+            prompt('请长按下方内容手动复制备份：', b);
+          }
+        }}, '📋 复制备份'),
         h('button', {class:'btn btn-s btn-xs', onclick:()=>{ document.getElementById('sp_import').click(); }}, '📥 导入备份'),
       ),
       h('input', {class:'inp', type:'file', id:'sp_import', accept:'.json', style:{display:'none'}}),
@@ -544,49 +563,82 @@ function viewRecords() {
   return box;
 }
 // ========== AI 解读 ==========
+function ruleCompare3(records) {
+  let out = '📋 最近三次检查对比解读（' + records.map(r=>r.date).join('、') + '）：\n\n';
+  const keys = new Set();
+  records.forEach(r => Object.keys(r.items||{}).forEach(k => keys.add(k)));
+  let any = false;
+  for (const k of [...keys]) {
+    const vals = records.map(r => r.items[k]);
+    if (vals.every(v => typeof v === 'number') && vals.length === records.length) {
+      any = true;
+      out += '▪️ ' + k + '：' + vals.join(' → ');
+      if (vals[vals.length-1] > vals[0]) out += '（总体上升）';
+      else if (vals[vals.length-1] < vals[0]) out += '（总体下降）';
+      else out += '（平稳）';
+      const st = judge(k, vals[vals.length-1]);
+      out += st==='bad' ? ' ⚠️最新异常' : st==='ok' ? ' ✅正常' : '';
+      out += '\n';
+    } else {
+      any = true;
+      out += '▪️ ' + k + '：' + vals.join(' → ') + '\n';
+    }
+  }
+  if (!any) out += '近期三次记录暂无共同检查项目。\n';
+  out += '\n⚠️ 本解读由内置规则自动生成，仅供参考，不能替代医生诊断。';
+  return out;
+}
 function viewAI() {
   const box = h('div', {});
-  box.appendChild(h('div', {class:'card-title'}, '🤖 AI 智能解读'));
+  box.appendChild(h('div', {class:'card-title'}, '🤖 AI 智能解读（对比最近三次检查）'));
   const noKey = !((D.settings||{}).apiKey);
   if (noKey) {
     box.appendChild(h('div', {class:'alert alert-warn'},
-      '当前使用内置规则引擎解读（完全离线、免费）。\n如需更深入的AI分析，可在「设置」中填入 DeepSeek API Key（api.deepseek.com 免费注册获取）。'));
+      '当前使用内置规则引擎解读（完全离线、免费）。\n如需更深入的AI分析，可在「设置」中填入 DeepSeek API Key。'));
   }
   const outBox = h('div', {});
+  // 恢复历史解析状态（切换Tab后回来仍显示）
+  if (aiState) {
+    if (aiState.loading) outBox.appendChild(h('div',{class:'ai-box'},'⏳ 分析中...（可切换页面，完成后返回查看）'));
+    else if (aiState.text) outBox.appendChild(h('div',{class:'ai-box'}, aiState.text));
+  }
   const btnRow = h('div', {class:'btn-row'},
     h('button', {class:'btn btn-p btn-xs', onclick: async ()=>{
-      if (!D.records.length) { outBox.innerHTML=''; outBox.appendChild(h('div',{class:'ai-box'},'暂无检查记录可解读')); return; }
-      const latest = D.records.slice().sort((a,b)=>b.date.localeCompare(a.date))[0];
-      outBox.innerHTML=''; outBox.appendChild(h('div',{class:'ai-box'},'⏳ 分析中...'));
-      let text = ruleInterpret(latest, D.profile);
+      const sorted = D.records.slice().sort((a,b)=>a.date.localeCompare(a.date));
+      if (sorted.length < 2) { alert('需要至少2次检查记录才能对比解读'); return; }
+      const latest3 = sorted.slice(-3);
+      aiState = { loading: true };
+      render();
+      let text = ruleCompare3(latest3);
       if (!noKey) {
-        const ai = await deepseekAsk('请解读以下孕期检查结果（' + latest.date + '，孕' + latest.week + '周）：\n' +
-          Object.entries(latest.items||{}).map(([k,v])=>`${k}: ${v}${NORMAL_RANGES[k]?'（参考：'+NORMAL_RANGES[k].min+'-'+NORMAL_RANGES[k].max+' '+NORMAL_RANGES[k].unit+'）':''}`).join('\n') +
-          '\n请用「医学结论+通俗解释」双层结构，逐项分析，标注异常，最后附免责声明。', '你是资深妇产科医生。');
+        const detail = latest3.map(r => '【' + r.date + ' 孕' + r.week + '周】\n' +
+          Object.entries(r.items||{}).map(([k,v])=>`${k}: ${v}${NORMAL_RANGES[k]?'（参考：'+NORMAL_RANGES[k].min+'-'+NORMAL_RANGES[k].max+' '+NORMAL_RANGES[k].unit+'）':''}`).join('\n')).join('\n\n---\n\n');
+        const ai = await deepseekAsk('请对比解读以下最近三次孕期检查（按时间顺序）：\n' + detail +
+          '\n\n要求：1.逐项对比三次数值变化趋势 2.标出异常项和趋势风险 3.给出通俗总结和建议 4.附免责声明。', '你是资深妇产科医生，擅长孕期数据趋势对比分析。');
         if (ai) text = ai;
       }
-      outBox.innerHTML=''; outBox.appendChild(h('div',{class:'ai-box'}, text));
-    }}, '📋 解读最近检查'),
+      aiState = { loading: false, text: text };
+      render();
+    }}, '📋 解读最近三次检查'),
     h('button', {class:'btn btn-s btn-xs', onclick: async ()=>{
-      if (!D.records.length) { outBox.innerHTML=''; outBox.appendChild(h('div',{class:'ai-box'},'暂无记录可总结')); return; }
+      if (!D.records.length) { alert('暂无记录可总结'); return; }
       const sorted = D.records.slice().sort((a,b)=>a.date.localeCompare(a.date));
-      outBox.innerHTML=''; outBox.appendChild(h('div',{class:'ai-box'},'⏳ 总结中...'));
+      aiState = { loading: true };
+      render();
       let text = '📊 孕期数据自动总结（规则引擎）：\n\n共 ' + sorted.length + ' 次检查记录。\n';
       const allBad = {};
       sorted.forEach(r => abnormalKeys(r).forEach(k => allBad[k] = (allBad[k]||0)+1));
       const badKeys = Object.keys(allBad);
-      if (badKeys.length) {
-        text += '\n⚠️ 出现异常的项目：\n' + badKeys.map(k => `  ${k}：${allBad[k]}次异常`).join('\n');
-      } else {
-        text += '\n✅ 各次检查均未发现超出参考范围的项目。\n';
-      }
+      if (badKeys.length) text += '\n⚠️ 出现异常的项目：\n' + badKeys.map(k => '  ' + k + '：' + allBad[k] + '次异常').join('\n');
+      else text += '\n✅ 各次检查均未发现超出参考范围的项目。\n';
       if (!noKey) {
         const ai = await deepseekAsk('请对以下孕期全部检查记录做综合分析：\n' +
-          sorted.map(r=>r.date+' 孕'+r.week+'周: '+Object.entries(r.items||{}).map(([k,v])=>`${k}:${v}`).join(', ')).join('\n---\n') +
+          sorted.map(r=>r.date+' 孕'+r.week+'周: '+Object.entries(r.items||{}).map(([k,v])=>k+':'+v).join(', ')).join('\n---\n') +
           '\n请评估整体进展、识别异常趋势、列出风险点，最后附免责声明。', '你是资深妇产科医生。');
         if (ai) text = ai;
       }
-      outBox.innerHTML=''; outBox.appendChild(h('div',{class:'ai-box'}, text));
+      aiState = { loading: false, text: text };
+      render();
     }}, '📊 孕期总结'),
     h('button', {class:'btn btn-s btn-xs', onclick:()=>{ curTab='settings'; curSubPage='settings'; render(); }}, '⚙️ 设置'),
   );
@@ -595,8 +647,7 @@ function viewAI() {
   box.appendChild(h('div', {style:{fontSize:'10px',color:'#94a3b8',textAlign:'center',marginTop:'8px'}},
     '⚠️ AI分析仅供参考，不能替代医生诊断。如有异常请及时就医。'));
   return box;
-}
-// ========== 趋势对比 ==========
+}// ========== 趋势对比 ==========
 function viewTrend() {
   const box = h('div', {});
   box.appendChild(h('div', {class:'card-title'}, '📈 趋势对比'));
@@ -1042,7 +1093,7 @@ async function visionRecognize(file, pdfText) {
     let raw = await callZhipuVision(base64, prompt);
     box.remove();
     const parsed = parseItemsJson(raw);
-    if (!parsed || !Object.keys(parsed.items).length) {
+    if (!parsed || (!Object.keys(parsed.items).length && !parsed.expense)) {
       const body = h('div', {},
         h('div', {style:{fontSize:'12px',color:'#64748b',marginBottom:'6px'}}, 'AI 未能自动提取结构化数据，以下是识别文本（可复制或编辑）：'),
         h('textarea', {class:'inp', style:{height:'180px'}}, raw),
