@@ -263,7 +263,7 @@ async function deepseekAsk(prompt, system) {
 }
 // ========== 主渲染 ==========
 let curTab = 'home';
-const APP_VERSION = '1.2.1'; // 当前版本（检查更新用）
+const APP_VERSION = '1.2.2'; // 当前版本（检查更新用）
 const TABS = [
   { id:'home', ic:'🏠', l:'首页' },
   { id:'records', ic:'📝', l:'检查记录' },
@@ -387,7 +387,8 @@ function viewSettingsPage() {
   return box;
 }
 // ========== 检查更新 ==========
-const UPDATE_URL = 'https://cdn.jsdelivr.net/gh/zyk0379/pregnancy-assistant-apk@main/version.json';
+const UPDATE_URL_RAW = 'https://raw.githubusercontent.com/zyk0379/pregnancy-assistant-apk/main/version.json';
+const UPDATE_URL_CDN = 'https://cdn.jsdelivr.net/gh/zyk0379/pregnancy-assistant-apk@main/version.json';
 const APK_URL = 'https://cdn.jsdelivr.net/gh/zyk0379/pregnancy-assistant-apk@main/pregnancy-assistant.apk';
 function verCmp(a, b) {
   const pa = String(a).split('.').map(Number);
@@ -401,8 +402,9 @@ function verCmp(a, b) {
 function checkUpdate() {
   const st = document.getElementById('update_status');
   if (st) st.textContent = '⏳ 正在检查更新...';
-  fetch(UPDATE_URL, { cache: 'no-store' })
+  fetch(UPDATE_URL_RAW, { cache: 'no-store' })
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .catch(() => fetch(UPDATE_URL_CDN, { cache: 'no-store' }).then(r => r.json()))
     .then(j => {
       if (!st) return;
       if (j.version && verCmp(j.version, APP_VERSION) > 0) {
