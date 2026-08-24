@@ -4,8 +4,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-        android:label="孕期管理助手"
-        android:icon="@drawable/ic_launcher"
+        android:label="噜妹好孕"
+        android:icon="@drawable/lume"
         android:allowBackup="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
