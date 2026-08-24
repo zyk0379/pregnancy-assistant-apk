@@ -319,6 +319,12 @@ function viewHome() {
       h('div', {style:{marginTop:'10px'}}, h('button', {class:'btn btn-s btn-xs', onclick:modalProfile}, '✏️ 编辑档案')),
     ));
   }
+  // 拍照识别大按钮（显眼入口）
+  box.appendChild(h('div', {class:'card', style:{textAlign:'center', background:'linear-gradient(135deg,#e8f5e9,#f1f8e9)', borderLeft:'3px solid #66bb6a', cursor:'pointer'}, onclick:openVisionImport},
+    h('div', {style:{fontSize:'34px'}}, '📷'),
+    h('div', {style:{fontSize:'15px',fontWeight:600,color:'#2e7d32',margin:'6px 0 2px'}}, '拍照识别检查单'),
+    h('div', {style:{fontSize:'11px',color:'#66bb6a'}}, '拍化验单/彩超报告，AI 自动提取数据和费用'),
+  ));
   // 最近三次对比
   const rc = D.records.slice().sort((a,b)=>b.date.localeCompare(a.date));
   if (rc.length >= 2) {
