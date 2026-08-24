@@ -260,16 +260,16 @@ async function deepseekAsk(prompt, system) {
 }
 // ========== 主渲染 ==========
 let curTab = 'home';
+const APP_VERSION = '1.1.1'; // 当前版本（检查更新用）
 const TABS = [
   { id:'home', ic:'🏠', l:'首页' },
-  { id:'checklist', ic:'📋', l:'产检清单' },
   { id:'records', ic:'📝', l:'检查记录' },
   { id:'ai', ic:'🤖', l:'AI解读' },
   { id:'trend', ic:'📈', l:'趋势对比' },
   { id:'expense', ic:'💰', l:'费用' },
-  { id:'diet', ic:'🍽️', l:'饮食' },
-  { id:'know', ic:'📚', l:'知识' },
+  { id:'settings', ic:'⚙️', l:'设置' },
 ];
+let curSubPage = null; // 设置内二级页面：checklist/diet/know/settings
 function renderTabs() {
   const box = document.getElementById('tabs'); box.innerHTML = '';
   for (const t of TABS) {
@@ -288,16 +288,120 @@ function renderHeader() {
 function render() {
   renderHeader(); renderTabs();
   const c = document.getElementById('content');
+  if (curTab === 'settings' && curSubPage) {
+    const titles = { checklist:'📋 产检清单', diet:'🍽️ 饮食生活', know:'📚 知识库', settings:'⚙️ 设置与备份' };
+    c.innerHTML = '';
+    c.appendChild(h('div', {style:{display:'flex',alignItems:'center',gap:'8px',marginBottom:'8px'}},
+      h('button', {class:'btn btn-s btn-xs', onclick:()=>{ curSubPage=null; render(); }}, '← 返回'),
+      h('b', {style:{fontSize:'15px'}}, titles[curSubPage] || '')));
+    if (curSubPage==='checklist') c.appendChild(viewChecklist());
+    else if (curSubPage==='diet') c.appendChild(viewDiet());
+    else if (curSubPage==='know') c.appendChild(viewKnow());
+    else if (curSubPage==='settings') c.appendChild(viewSettingsPage());
+    return;
+  }
   switch (curTab) {
     case 'home': c.innerHTML = ''; c.appendChild(viewHome()); break;
-    case 'checklist': c.innerHTML = ''; c.appendChild(viewChecklist()); break;
     case 'records': c.innerHTML = ''; c.appendChild(viewRecords()); break;
     case 'ai': c.innerHTML = ''; c.appendChild(viewAI()); break;
     case 'trend': c.innerHTML = ''; c.appendChild(viewTrend()); break;
     case 'expense': c.innerHTML = ''; c.appendChild(viewExpense()); break;
-    case 'diet': c.innerHTML = ''; c.appendChild(viewDiet()); break;
-    case 'know': c.innerHTML = ''; c.appendChild(viewKnow()); break;
+    case 'settings': c.innerHTML = ''; c.appendChild(viewSettings()); break;
   }
+}
+// ========== 设置页（二级菜单） ==========
+function viewSettings() {
+  const box = h('div', {});
+  const items = [
+    { id:'checklist', ic:'📋', t:'产检清单', d:'标准产检时间表与检查项目' },
+    { id:'diet', ic:'🍽️', t:'饮食生活', d:'推荐食物、禁忌与个性化建议' },
+    { id:'know', ic:'📚', t:'知识库', d:'检查项目正常值参考与名词解释' },
+    { id:'settings', ic:'⚙️', t:'设置与备份', d:'API Key、数据备份导入导出' },
+  ];
+  for (const it of items) {
+    box.appendChild(h('div', {class:'card', style:{display:'flex',alignItems:'center',justifyContent:'space-between',cursor:'pointer'}, onclick:()=>{ curSubPage=it.id; render(); }},
+      h('div', {style:{display:'flex',alignItems:'center',gap:'10px'}},
+        h('span', {style:{fontSize:'22px'}}, it.ic),
+        h('div', {}, h('div', {style:{fontWeight:600}}, it.t), h('div', {style:{fontSize:'11px',color:'#94a3b8'}}, it.d))),
+      h('span', {style:{color:'#cbd5e1',fontSize:'18px'}}, '›')));
+  }
+  return box;
+}
+// 设置与备份页面版
+function viewSettingsPage() {
+  const box = h('div', {},
+    h('div', {class:'card'},
+      h('div', {class:'card-title'}, '🔄 关于与更新'),
+      h('div', {style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'8px'}},
+        h('div', {style:{fontSize:'12px',color:'#64748b'}}, '当前版本：v' + APP_VERSION),
+        h('button', {class:'btn btn-p btn-xs', onclick:checkUpdate}, '🔄 检查更新')),
+      h('div', {id:'update_status', style:{fontSize:'11px',color:'#94a3b8'}}, '点击检查是否有新版本'),
+    ),
+    h('div', {class:'card'},
+      h('div', {class:'card-title'}, '🔍 视觉识别 Key（智谱）'),
+      h('div', {style:{fontSize:'11px',color:'#64748b',marginBottom:'6px'}}, '用于拍照/扫描件识别检查单。智谱开放平台免费获取。'),
+      h('input', {class:'inp', id:'sp_vkey', value:(D.settings||{}).visionKey||'', placeholder:'xxx.xxx'}),
+      h('div', {class:'card-title', style:{marginTop:'12px'}}, '🤖 DeepSeek API Key'),
+      h('div', {style:{fontSize:'11px',color:'#64748b',marginBottom:'6px'}}, '用于深度AI解读，留空则用内置规则引擎。'),
+      h('input', {class:'inp', id:'sp_key', value:(D.settings||{}).apiKey||'', placeholder:'sk-...'}),
+      h('button', {class:'btn btn-p btn-xs', onclick:()=>{
+        D.settings = D.settings||{};
+        D.settings.visionKey = (document.getElementById('sp_vkey')||{}).value || '';
+        D.settings.apiKey = (document.getElementById('sp_key')||{}).value || '';
+        save(); alert('✅ 设置已保存'); render();
+      }}, '💾 保存设置')),
+    h('div', {class:'card'},
+      h('div', {class:'card-title'}, '💾 数据备份'),
+      h('div', {style:{display:'flex',gap:'8px',flexWrap:'wrap'}},
+        h('button', {class:'btn btn-s btn-xs', onclick:()=>{
+          const b = JSON.stringify(D, null, 2);
+          const a = document.createElement('a');
+          a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(b);
+          a.download = 'pregnancy-backup-' + new Date().toISOString().slice(0,10) + '.json';
+          a.click();
+        }}, '📤 导出备份'),
+        h('button', {class:'btn btn-s btn-xs', onclick:()=>{ document.getElementById('sp_import').click(); }}, '📥 导入备份'),
+      ),
+      h('input', {class:'inp', type:'file', id:'sp_import', accept:'.json', style:{display:'none'}}),
+    ),
+    h('div', {class:'card'},
+      h('div', {class:'card-title'}, '🗑 危险操作'),
+      h('button', {class:'btn btn-d btn-xs', onclick:()=>{ if(confirm('确定清空全部数据？此操作不可恢复！')){ localStorage.removeItem(KEY); location.reload(); } }}, '清空全部数据')),
+  );
+  const fi = document.getElementById('sp_import');
+  // 绑定导入事件（在下次渲染时元素已存在，直接绑定）
+  setTimeout(() => {
+    const inp = document.getElementById('sp_import');
+    if (inp) inp.onchange = () => {
+      if (inp.files && inp.files[0]) {
+        const fr = new FileReader();
+        fr.onload = () => { try { D = JSON.parse(fr.result); save(); render(); alert('✅ 导入成功！'); } catch(e){ alert('❌ 导入失败：文件格式不正确'); } };
+        fr.readAsText(inp.files[0]);
+      }
+    };
+  }, 0);
+  return box;
+}
+// ========== 检查更新 ==========
+const UPDATE_URL = 'https://cdn.jsdelivr.net/gh/zyk0379/pregnancy-assistant-apk@main/version.json';
+const APK_URL = 'https://cdn.jsdelivr.net/gh/zyk0379/pregnancy-assistant-apk@main/pregnancy-assistant.apk';
+function checkUpdate() {
+  const st = document.getElementById('update_status');
+  if (st) st.textContent = '⏳ 正在检查更新...';
+  fetch(UPDATE_URL, { cache: 'no-store' })
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(j => {
+      if (!st) return;
+      if (j.version && j.version !== APP_VERSION) {
+        st.innerHTML = '🎉 发现新版本 v' + j.version + '！' + (j.date ? '（' + j.date + '）' : '');
+        if (confirm('发现新版本 v' + j.version + '，是否立即下载更新？')) {
+          window.open(APK_URL, '_blank');
+        }
+      } else {
+        st.textContent = '✅ 已是最新版本 v' + APP_VERSION;
+      }
+    })
+    .catch(e => { if (st) st.textContent = '❌ 检查失败（网络问题），可稍后重试'; });
 }
 // ========== 首页 ==========
 function viewHome() {
@@ -391,6 +495,7 @@ function viewRecords() {
   for (const r of sorted) {
     const abn = abnormalKeys(r);
     const items = Object.entries(r.items||{}).filter(([,v])=>v!==undefined&&v!==''&&v!==null);
+    const refsMap = r.refs || {};
     box.appendChild(h('div', {class:'card'},
       h('div', {style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
         h('b', {}, r.date + ' 孕' + r.week + '周'),
@@ -398,7 +503,9 @@ function viewRecords() {
                  h('button',{class:'btn btn-d btn-xs',onclick:()=>{ if(confirm('确定删除这条记录？')){ D.records=D.records.filter(x=>x.id!==r.id); save(); render(); } }},'🗑'))),
       r.hospital ? h('div', {style:{fontSize:'11px',color:'#94a3b8'}}, r.hospital + (r.doctor?' · '+r.doctor:'')) : null,
       items.length ? h('div', {style:{marginTop:'6px',fontSize:'12px'}},
-        ...items.slice(0,10).map(([k,v]) => h('span', {class:'tag '+(judge(k,v)==='bad'?'tag-bad':judge(k,v)==='ok'?'tag-ok':'')}, `${k}: ${v}`))) : null,
+        ...items.slice(0,10).map(([k,v]) => h('span', {style:{display:'inline-block',marginRight:'6px'}},
+            h('span', {class:'tag '+(judge(k,v)==='bad'?'tag-bad':judge(k,v)==='ok'?'tag-ok':'')}, `${k}: ${v}`),
+            refsMap[k] ? h('span', {style:{fontSize:'10px',color:'#94a3b8',marginLeft:'2px'}}, '('+refsMap[k]+')') : null))) : null,
       abn.length ? h('div', {style:{marginTop:'6px',fontSize:'11px',color:'#dc2626'}}, '⚠️ 异常项：' + abn.join('、')) : null,
       r.notes ? h('div', {style:{marginTop:'6px',fontSize:'11px',color:'#64748b'}}, '📝 ' + r.notes) : null,
     ));
@@ -450,7 +557,7 @@ function viewAI() {
       }
       outBox.innerHTML=''; outBox.appendChild(h('div',{class:'ai-box'}, text));
     }}, '📊 孕期总结'),
-    h('button', {class:'btn btn-s btn-xs', onclick:()=>modalSettings()}, '⚙️ 设置'),
+    h('button', {class:'btn btn-s btn-xs', onclick:()=>{ curTab='settings'; curSubPage='settings'; render(); }}, '⚙️ 设置'),
   );
   box.appendChild(btnRow);
   box.appendChild(outBox);
@@ -812,9 +919,9 @@ function showPdfResult(filename, text) {
 // ========== 视觉识别（智谱 GLM-4V，识别照片/扫描件） ==========
 function openVisionImport() {
   const key = (D.settings||{}).visionKey || '';
-  if (!key) { alert('请先在「设置」中填入视觉识别 API Key（智谱开放平台免费获取）'); modalSettings(); return; }
+  if (!key) { alert('请先在「设置」中填入视觉识别 API Key（智谱开放平台免费获取）'); curTab='settings'; curSubPage='settings'; render(); return; }
   const fi = document.createElement('input');
-  fi.type = 'file'; fi.accept = 'image/*'; fi.capture = 'environment';
+  fi.type = 'file'; fi.accept = 'image/*';
   fi.onchange = () => { if (fi.files && fi.files[0]) visionRecognize(fi.files[0], null); };
   fi.click();
 }
@@ -848,7 +955,7 @@ async function callZhipuVision(base64Img, prompt) {
   const body = { model: 'glm-4v-flash', messages: [{ role: 'user', content: [
     { type: 'text', text: prompt },
     { type: 'image_url', image_url: { url: base64Img } }
-  ]}], max_tokens: 1500, temperature: 0.1 };
+  ]}], max_tokens: 1024, temperature: 0.1 };
   const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: JSON.stringify(body) });
   if (!r.ok) { const j = await r.json().catch(()=>({})); throw new Error('API错误 ' + r.status + ': ' + (j.error ? JSON.stringify(j.error).slice(0,100) : '')); }
   const j = await r.json();
@@ -862,7 +969,10 @@ function parseItemsJson(text) {
     const out = {};
     for (const k in items) { const v = items[k]; if (v !== null && v !== '' && v !== undefined) out[k] = v; }
     const exp = (j.expense && j.expense.amount) ? j.expense : null;
-    return { items: out, expense: exp };
+    const refs = j.refs || {};
+    const refOut = {};
+    for (const k in refs) { const v = refs[k]; if (v !== null && v !== '' && v !== undefined) refOut[k] = String(v); }
+    return { items: out, expense: exp, refs: refOut };
   } catch(e) { return null; }
 }
 async function visionRecognize(file, pdfText) {
@@ -872,10 +982,11 @@ async function visionRecognize(file, pdfText) {
   document.body.appendChild(box);
   try {
     const base64 = file ? await compressImage(file) : null;
-    const prompt = '你是一位医学检验单识别助手。请识别这张孕期检查单/化验单/彩超报告上的所有检查项目和数值，以及费用信息。' +
-      '严格输出JSON格式（不要任何其他文字）：{"items":{"项目名称":数值或文本},"expense":{"amount":金额数字,"note":"费用说明"}}。' +
-      '要求：项目名称用中文（如"收缩压""血红蛋白""双顶径"），数值保持原样如"120/80"或"5.2"。' +
-      '如果单据上有金额/费用信息（如"应收350元""检查费200元""挂号费50元"）就填入expense，没有则expense填null。' +
+    const prompt = '你是一位医学检验单识别助手。请识别这张孕期检查单/化验单/彩超报告上的所有检查项目、结果数值、参考值范围，以及费用信息。' +
+      '严格输出JSON格式（不要任何其他文字）：{"items":{"项目名称":结果数值},"refs":{"项目名称":"参考范围如 3.5-5.1 或 阴性/阳性"},"expense":{"amount":金额数字,"note":"费用说明"}}。' +
+      '要求：项目名称用中文（如"收缩压""血红蛋白""双顶径"），结果数值保持原样如"120/80"或"5.2"。' +
+      '重点：报告单上通常有"参考值/参考范围/正常值"一列，必须把这一列提取到refs里（如"3.5-5.1""<5.1""阴性"），每个项目都要有refs；如果单据上没有参考值列则refs可以为空对象。' +
+      '如果是费用票据（缴费单/收据/发票），items输出空对象{}，只提取expense。票据上常有多个金额：医保统筹支付、现金、POS、支付宝/微信、医保账户等。expense.amount必须填"实际支付金额"=支付宝/微信/现金/POS等支付方式的金额（不是统筹报销！）。note填支付方式名。如果是检验单则expense填null。' +
       (pdfText ? '同时参考以下PDF提取文字辅助识别（可能是乱序文本）：' + pdfText.slice(0,1500) : '');
     let raw = await callZhipuVision(base64, prompt);
     box.remove();
@@ -888,7 +999,7 @@ async function visionRecognize(file, pdfText) {
       showModal('🤖 AI 识别结果', body, null);
       return;
     }
-    showVisionConfirm(parsed.items, parsed.expense);
+    showVisionConfirm(parsed.items, parsed.expense, parsed.refs);
   } catch(e) {
     box.remove();
     alert('识别失败：' + (e.message || e) + '\n\n提示：\n1. 检查网络\n2. 确认设置了视觉识别 Key\n3. 若为浏览器打开，需用 APK 版或本机服务器版');
@@ -904,7 +1015,8 @@ function collectVisionExpense() {
   if (!amtEl || !amtEl.value) return null;
   return { id: uid(), date: new Date().toISOString().slice(0,10), category: (document.getElementById('vx_exp_cat')||{}).value || '检查费', amount: parseFloat(amtEl.value) || 0, selfPaid: false, note: (document.getElementById('vx_exp_note')||{}).value || '' };
 }
-function showVisionConfirm(items, expense) {
+function showVisionConfirm(items, expense, refs) {
+  refs = refs || {};
   const found = Object.keys(items);
   const hasExp = !!(expense && expense.amount);
   const body = h('div', {},
@@ -912,7 +1024,8 @@ function showVisionConfirm(items, expense) {
     h('div', {style:{fontSize:'11px',color:'#94a3b8',margin:'4px 0 8px'}}, '请核对修改数值（AI识别可能有误差）：'),
     ...found.map(k => h('div', {class:'row', style:{marginBottom:'4px'}},
       h('label',{class:'lbl',style:{minWidth:'90px',flex:'none',alignSelf:'center'}}, k),
-      h('input',{class:'inp',style:{flex:1},id:'vx_'+k,value:items[k]}))),
+      h('input',{class:'inp',style:{flex:1},id:'vx_'+k,value:items[k]}),
+      refs[k] ? h('span',{style:{fontSize:'10px',color:'#94a3b8',alignSelf:'center',flex:'none'}}, '参考值:'+refs[k]) : null)),
     hasExp ? h('div', {style:{marginTop:'8px',paddingTop:'10px',borderTop:'1px solid #f1f5f9'}},
       h('b', {style:{fontSize:'14px'}}, '💰 识别到费用（可修改）'),
       h('div', {class:'row', style:{marginTop:'6px'}},
@@ -921,11 +1034,11 @@ function showVisionConfirm(items, expense) {
       h('label',{class:'lbl'},'备注'), h('input',{class:'inp',id:'vx_exp_note',value:(expense.note||'').slice(0,60)}),
     ) : null,
     h('div', {style:{display:'flex',gap:'8px',marginTop:'10px'}},
-      h('button', {class:'btn btn-s', onclick:()=>{ modalVisionDate(body, found, expense); }}, '下一步 ⏭'),
+      h('button', {class:'btn btn-s', onclick:()=>{ modalVisionDate(body, found, expense, refs); }}, '下一步 ⏭'),
       h('button', {class:'btn btn-p', onclick:()=>{
         const finalItems = collectVisionItems(found);
         const exp = collectVisionExpense();
-        const r = { id: uid(), date: new Date().toISOString().slice(0,10), week:'', hospital:'', doctor:'', items: finalItems, notes: 'AI拍照识别导入' };
+        const r = { id: uid(), date: new Date().toISOString().slice(0,10), week:'', hospital:'', doctor:'', items: finalItems, refs: refs, notes: 'AI拍照识别导入' };
         D.records.push(r);
         if (exp) D.expenses.push(exp);
         save(); render(); alert('✅ 已保存 ' + found.length + ' 项' + (exp ? ' + 费用¥' + exp.amount : '') + '，可在「检查记录」中编辑！');
@@ -934,7 +1047,7 @@ function showVisionConfirm(items, expense) {
   document.body.appendChild(ov);
 }
 // 拍照识别第二步：确认日期/孕周后保存
-function modalVisionDate(body, found, expense) {
+function modalVisionDate(body, found, expense, refs) {
   const finalItems = collectVisionItems(found);
   const body2 = h('div', {},
     h('div', {style:{fontSize:'12px',color:'#64748b',marginBottom:'8px'}}, '补充检查日期和孕周（可跳过）：'),
@@ -943,7 +1056,7 @@ function modalVisionDate(body, found, expense) {
     h('div', {style:{display:'flex',gap:'8px',marginTop:'10px'}},
       h('button', {class:'btn btn-s', onclick:()=>ov2.remove()}, '返回'),
       h('button', {class:'btn btn-p', onclick:()=>{
-        const r = { id: uid(), date:(document.getElementById('vd_date')||{}).value||new Date().toISOString().slice(0,10), week:(document.getElementById('vd_week')||{}).value||'', hospital:'', doctor:'', items: finalItems, notes: 'AI拍照识别导入' };
+        const r = { id: uid(), date:(document.getElementById('vd_date')||{}).value||new Date().toISOString().slice(0,10), week:(document.getElementById('vd_week')||{}).value||'', hospital:'', doctor:'', items: finalItems, refs: refs||{}, notes: 'AI拍照识别导入' };
         D.records.push(r);
         const exp = collectVisionExpense();
         if (exp) { exp.date = r.date; D.expenses.push(exp); }
