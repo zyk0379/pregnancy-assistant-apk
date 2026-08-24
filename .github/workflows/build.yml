@@ -21,15 +21,15 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Build Release APK
+      - name: Build Debug APK
         working-directory: android
-        run: gradle assembleRelease --no-daemon
+        run: gradle assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: pregnancy-assistant-apk
-          path: android/app/build/outputs/apk/release/*.apk
+          path: android/app/build/outputs/apk/debug/*.apk
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
