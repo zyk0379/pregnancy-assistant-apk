@@ -12,51 +12,54 @@
 <title>🤰 孕期管理助手</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-html, body { height: 100%; } body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; background: #f8fafc; color: #1e293b; font-size: 14px; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+html, body { height: 100%; }
+body { font-family: Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #f8f9fa; color: #202124; font-size: 14px; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
 #app { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-.header { background: linear-gradient(135deg, #f0c6dc, #fbe8f1); padding: 14px 16px; text-align: center; flex-shrink: 0; }
-.header h1 { font-size: 17px; color: #8b5e7a; }
-.header .sub { font-size: 12px; color: #a0708a; margin-top: 3px; }
-.content { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; padding-bottom: 20px; -webkit-overflow-scrolling: touch; }
-.tabs { display: flex; background: #fff; border-top: 1px solid #e2e8f0; flex-shrink: 0; overflow-x: auto; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 2px); }
-.tab { flex: 1; min-width: 46px; text-align: center; padding: 10px 2px 12px; font-size: 10px; border: none; background: none; color: #64748b; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px; }
-.tab.active { color: #c4628a; font-weight: 600; }
-.tab .ic { font-size: 19px; }
-.card { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
-.card-title { font-size: 15px; font-weight: 600; color: #475569; margin-bottom: 8px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; }
-.btn { padding: 8px 16px; border-radius: 8px; border: none; font-size: 13px; cursor: pointer; font-weight: 500; }
-.btn-p { background: #c4628a; color: #fff; }
-.btn-s { background: #f1f5f9; color: #475569; }
-.btn-d { background: #fecaca; color: #dc2626; }
-.btn-xs { padding: 4px 10px; font-size: 11px; }
-.inp { width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; margin-bottom: 8px; background: #fff; }
-.inp:focus { outline: none; border-color: #c4628a; }
-.lbl { font-size: 12px; color: #64748b; margin-bottom: 2px; display: block; }
-.tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin: 2px; }
-.tag-ok { background: #dcfce7; color: #166534; }
-.tag-bad { background: #fecaca; color: #991b1b; }
-.tag-warn { background: #fef3c7; color: #92400e; }
+.header { background: #ffffff; padding: 12px 16px 14px; text-align: center; flex-shrink: 0; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.header h1 { font-size: 16px; color: #202124; font-weight: 500; }
+.header .sub { font-size: 12px; color: #5f6368; margin-top: 2px; }
+.content { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; padding-bottom: 24px; -webkit-overflow-scrolling: touch; }
+.tabs { display: flex; background: #ffffff; border-top: 1px solid #e8eaed; flex-shrink: 0; overflow-x: auto; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 2px); }
+.tab { flex: 1; min-width: 46px; text-align: center; padding: 10px 2px 12px; font-size: 10px; border: none; background: none; color: #5f6368; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.tab.active { color: #1a73e8; font-weight: 600; }
+.tab .ic { font-size: 20px; }
+.card { background: #ffffff; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+.card-title { font-size: 14px; font-weight: 500; color: #202124; margin-bottom: 8px; border-bottom: 1px solid #f1f3f4; padding-bottom: 8px; }
+.btn { padding: 8px 16px; border-radius: 20px; border: none; font-size: 13px; cursor: pointer; font-weight: 500; transition: background .15s; }
+.btn-p { background: #1a73e8; color: #fff; }
+.btn-p:active { background: #1765cc; }
+.btn-s { background: #f1f3f4; color: #3c4043; }
+.btn-s:active { background: #e8eaed; }
+.btn-d { background: #fce8e6; color: #d93025; }
+.btn-xs { padding: 5px 12px; font-size: 11px; }
+.inp { width: 100%; padding: 10px 12px; border: 1px solid #dadce0; border-radius: 8px; font-size: 13px; margin-bottom: 8px; background: #fff; color: #202124; }
+.inp:focus { outline: none; border-color: #1a73e8; box-shadow: 0 0 0 2px rgba(26,115,232,.2); }
+.lbl { font-size: 12px; color: #5f6368; margin-bottom: 4px; display: block; }
+.tag { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; margin: 2px; }
+.tag-ok { background: #e6f4ea; color: #137333; }
+.tag-bad { background: #fce8e6; color: #c5221f; }
+.tag-warn { background: #fef7e0; color: #ea8600; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; }
 .col { flex: 1; min-width: 110px; }
 table.tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
-table.tbl th, table.tbl td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #f1f5f9; }
-table.tbl th { font-weight: 600; color: #64748b; font-size: 11px; }
+table.tbl th, table.tbl td { padding: 8px; text-align: left; border-bottom: 1px solid #f1f3f4; }
+table.tbl th { font-weight: 500; color: #5f6368; font-size: 11px; }
 .stat { text-align: center; }
-.stat-num { font-size: 26px; font-weight: 700; color: #c4628a; }
-.stat-lbl { font-size: 11px; color: #94a3b8; }
-.bar { height: 6px; border-radius: 3px; background: #e2e8f0; margin-top: 4px; overflow: hidden; }
-.bar-fill { height: 100%; border-radius: 3px; background: #c4628a; }
-.modal-ov { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.stat-num { font-size: 26px; font-weight: 500; color: #1a73e8; }
+.stat-lbl { font-size: 11px; color: #80868b; }
+.bar { height: 6px; border-radius: 3px; background: #f1f3f4; margin-top: 4px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; background: #1a73e8; }
+.modal-ov { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(32,33,36,.5); display: flex; align-items: center; justify-content: center; z-index: 100; }
 .modal { background: #fff; border-radius: 16px; padding: 20px; max-width: 94vw; max-height: 86vh; overflow-y: auto; width: 520px; }
-.ai-box { background: #fffbeb; border-radius: 8px; padding: 10px 12px; font-size: 12px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+.ai-box { background: #f8f9fa; border-radius: 8px; padding: 12px; font-size: 12px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
 .hidden { display: none; }
 .chart-row { display: flex; align-items: flex-end; gap: 5px; height: 90px; margin-top: 8px; }
 .chart-col { flex: 1; text-align: center; }
 .chart-bar { border-radius: 4px 4px 0 0; transition: height .3s; }
-.chart-lbl { font-size: 8px; color: #94a3b8; margin-top: 2px; }
-.alert { padding: 8px 10px; border-radius: 8px; font-size: 12px; margin-bottom: 8px; }
-.alert-warn { background: #fef3c7; color: #92400e; border-left: 3px solid #f59e0b; }
-.empty { text-align: center; color: #94a3b8; padding: 36px 0; font-size: 13px; }
+.chart-lbl { font-size: 8px; color: #80868b; margin-top: 2px; }
+.alert { padding: 8px 12px; border-radius: 8px; font-size: 12px; margin-bottom: 8px; }
+.alert-warn { background: #fef7e0; color: #ea8600; border-left: 3px solid #f9ab00; }
+.empty { text-align: center; color: #80868b; padding: 36px 0; font-size: 13px; }
 .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 </style>
 </head>
@@ -260,7 +263,7 @@ async function deepseekAsk(prompt, system) {
 }
 // ========== 主渲染 ==========
 let curTab = 'home';
-const APP_VERSION = '1.1.1'; // 当前版本（检查更新用）
+const APP_VERSION = '1.2.0'; // 当前版本（检查更新用）
 const TABS = [
   { id:'home', ic:'🏠', l:'首页' },
   { id:'records', ic:'📝', l:'检查记录' },
@@ -336,6 +339,7 @@ function viewSettingsPage() {
         h('div', {style:{fontSize:'12px',color:'#64748b'}}, '当前版本：v' + APP_VERSION),
         h('button', {class:'btn btn-p btn-xs', onclick:checkUpdate}, '🔄 检查更新')),
       h('div', {id:'update_status', style:{fontSize:'11px',color:'#94a3b8'}}, '点击检查是否有新版本'),
+      h('div', {style:{fontSize:'11px',color:'#80868b',marginTop:'8px',textAlign:'center'}}, '作者：LuLu＆LuMei · 专注孕期健康管理'),
     ),
     h('div', {class:'card'},
       h('div', {class:'card-title'}, '🔍 视觉识别 Key（智谱）'),
