@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#c4628a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="孕期助手">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<title>🤰 孕期管理助手</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; background: #f8fafc; color: #1e293b; font-size: 14px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+#app { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.header { background: linear-gradient(135deg, #f0c6dc, #fbe8f1); padding: 14px 16px; text-align: center; flex-shrink: 0; }
+.header h1 { font-size: 17px; color: #8b5e7a; }
+.header .sub { font-size: 12px; color: #a0708a; margin-top: 3px; }
+.content { flex: 1; overflow-y: auto; padding: 12px; -webkit-overflow-scrolling: touch; }
+.tabs { display: flex; background: #fff; border-top: 1px solid #e2e8f0; flex-shrink: 0; overflow-x: auto; }
+.tab { flex: 1; min-width: 46px; text-align: center; padding: 7px 2px 6px; font-size: 10px; border: none; background: none; color: #64748b; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.tab.active { color: #c4628a; font-weight: 600; }
+.tab .ic { font-size: 19px; }
+.card { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+.card-title { font-size: 15px; font-weight: 600; color: #475569; margin-bottom: 8px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; }
+.btn { padding: 8px 16px; border-radius: 8px; border: none; font-size: 13px; cursor: pointer; font-weight: 500; }
+.btn-p { background: #c4628a; color: #fff; }
+.btn-s { background: #f1f5f9; color: #475569; }
+.btn-d { background: #fecaca; color: #dc2626; }
+.btn-xs { padding: 4px 10px; font-size: 11px; }
+.inp { width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; margin-bottom: 8px; background: #fff; }
+.inp:focus { outline: none; border-color: #c4628a; }
+.lbl { font-size: 12px; color: #64748b; margin-bottom: 2px; display: block; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; margin: 2px; }
+.tag-ok { background: #dcfce7; color: #166534; }
+.tag-bad { background: #fecaca; color: #991b1b; }
+.tag-warn { background: #fef3c7; color: #92400e; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.col { flex: 1; min-width: 110px; }
+table.tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.tbl th, table.tbl td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #f1f5f9; }
+table.tbl th { font-weight: 600; color: #64748b; font-size: 11px; }
+.stat { text-align: center; }
+.stat-num { font-size: 26px; font-weight: 700; color: #c4628a; }
+.stat-lbl { font-size: 11px; color: #94a3b8; }
+.bar { height: 6px; border-radius: 3px; background: #e2e8f0; margin-top: 4px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; background: #c4628a; }
+.modal-ov { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal { background: #fff; border-radius: 16px; padding: 20px; max-width: 94vw; max-height: 86vh; overflow-y: auto; width: 520px; }
+.ai-box { background: #fffbeb; border-radius: 8px; padding: 10px 12px; font-size: 12px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+.hidden { display: none; }
+.chart-row { display: flex; align-items: flex-end; gap: 5px; height: 90px; margin-top: 8px; }
+.chart-col { flex: 1; text-align: center; }
+.chart-bar { border-radius: 4px 4px 0 0; transition: height .3s; }
+.chart-lbl { font-size: 8px; color: #94a3b8; margin-top: 2px; }
+.alert { padding: 8px 10px; border-radius: 8px; font-size: 12px; margin-bottom: 8px; }
+.alert-warn { background: #fef3c7; color: #92400e; border-left: 3px solid #f59e0b; }
+.empty { text-align: center; color: #94a3b8; padding: 36px 0; font-size: 13px; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header" id="headerBox">
+    <h1>🤰 孕期管理助手</h1>
+    <div class="sub" id="headerSub">请先创建孕期档案</div>
+  </div>
+  <div class="content" id="content"></div>
+  <div class="tabs" id="tabs"></div>
+</div>
+<script>
+'use strict';
+// ========== 参考数据（来源：《孕前和孕期保健指南2018》《妇产科学》第9版、中国营养学会膳食指南） ==========
+const CHECKUP_SCHEDULE = [
+  { week:"6-8周", name:"确认怀孕", items:["B超（胎心胎芽）","HCG","孕酮"], note:"确认宫内妊娠，排除宫外孕" },
+  { week:"11-13周", name:"NT检查+建档", items:["NT检查","血常规","尿常规","肝肾功能","乙肝/梅毒/HIV","血型","甲状腺功能"], note:"建档全面检查，NT<2.5mm为正常" },
+  { week:"16-20周", name:"中期唐筛", items:["唐氏筛查/无创DNA/羊水穿刺"], note:"根据年龄和NT结果选择筛查方式" },
+  { week:"20-24周", name:"大排畸（系统B超）", items:["系统B超（双顶径/股骨长/头围/腹围/羊水/胎盘）"], note:"最重要的排畸检查，需提前预约" },
+  { week:"24-28周", name:"糖耐量试验", items:["OGTT（空腹+糖后1h+2h血糖）"], note:"空腹<5.1，1h<10.0，2h<8.5 mmol/L" },
+  { week:"28-32周", name:"小排畸", items:["B超（二次排畸）","血常规","尿常规"], note:"补充排畸+评估发育" },
+  { week:"34周", name:"胎心监护", items:["胎心监护（NST）","B超","血常规"], note:"开始常规胎心监护" },
+  { week:"36周", name:"产前评估", items:["胎心监护","B族链球菌筛查","B超"], note:"评估分娩方式" },
+  { week:"37-40周", name:"足月监测", items:["每周胎心监护","B超（羊水/胎盘）"], note:"密切监测，随时准备分娩" },
+];
+const NORMAL_RANGES = {
+  "收缩压":   { min: 90,  max: 140, unit: "mmHg",   desc: "≥140 妊娠高血压风险" },
+  "舒张压":   { min: 60,  max: 90,  unit: "mmHg",   desc: "≥90 妊娠高血压风险" },
+  "空腹血糖": { max: 5.1,            unit: "mmol/L", desc: "≥5.1 妊娠糖尿病风险" },
+  "OGTT 1h血糖": { max: 10.0,        unit: "mmol/L", desc: "≥10.0 妊娠糖尿病风险" },
+  "OGTT 2h血糖": { max: 8.5,         unit: "mmol/L", desc: "≥8.5 妊娠糖尿病风险" },
+  "血红蛋白": { min: 110,            unit: "g/L",    desc: "<110 妊娠贫血" },
+  "NT值":     { max: 2.5,            unit: "mm",     desc: "≥2.5 需进一步检查" },
+  "羊水指数": { min: 8,   max: 18,   unit: "cm",     desc: "<8过少，>18过多" },
+  "尿蛋白":   { max: 0,              unit: "阴性",   desc: "阳性警惕子痫前期" },
+  "胎心率":   { min: 110, max: 160,  unit: "次/分",  desc: "正常110-160" },
+};
+const DIET_GUIDE = {
+  recommend: [
+    { food:"深色蔬菜（菠菜、西兰花）", reason:"富含叶酸和铁", stage:"全程" },
+    { food:"红肉、动物肝脏", reason:"补铁防贫血", stage:"中晚期" },
+    { food:"牛奶、酸奶", reason:"补钙（日1000mg）", stage:"全程" },
+    { food:"鸡蛋、深海鱼", reason:"优质蛋白+DHA", stage:"全程" },
+    { food:"全谷物（燕麦、糙米）", reason:"膳食纤维防便秘", stage:"全程" },
+    { food:"坚果（核桃、杏仁）", reason:"健康脂肪+维生素E", stage:"全程" },
+    { food:"豆制品", reason:"植物蛋白+钙", stage:"全程" },
+    { food:"水果（橙子、猕猴桃）", reason:"维生素C助铁吸收", stage:"全程" },
+  ],
+  avoid: [
+    { food:"生鱼片、生肉、生蛋", reason:"弓形虫/沙门氏菌", severity:"🚫 绝对禁止" },
+    { food:"酒精（任何含酒精饮品）", reason:"胎儿酒精综合征", severity:"🚫 绝对禁止" },
+    { food:"未消毒奶制品/软奶酪", reason:"李斯特菌", severity:"🚫 绝对禁止" },
+    { food:"高汞鱼类（鲨鱼、剑鱼等）", reason:"汞影响胎儿神经", severity:"🚫 绝对禁止" },
+    { food:"咖啡因>200mg/天", reason:"增加流产风险", severity:"⚠️ 限量" },
+    { food:"腌制食品/高盐食物", reason:"加重水肿高血压", severity:"⚠️ 限量" },
+    { food:"高糖饮料/甜点", reason:"增加糖尿病风险", severity:"⚠️ 限量" },
+  ],
+  byCondition: {
+    "贫血":    { advice:"多吃红肉、动物肝脏、菠菜、红枣、黑木耳，搭配Vc促进吸收", avoid:"浓茶、咖啡（抑制铁吸收）" },
+    "血糖高":  { advice:"低GI饮食：燕麦糙米代替白米，少食多餐，先菜后饭", avoid:"含糖饮料、糕点、精制碳水" },
+    "血压高":  { advice:"低盐<5g/天，多吃芹菜香蕉等富钾食物", avoid:"腌制食品、加工肉类" },
+    "羊水少":  { advice:"多喝水>2000ml/天、豆浆、椰子水", avoid:"利尿食物（咖啡浓茶）" },
+  },
+};
+const KNOWLEDGE = [
+  { name:"NT检查", desc:"孕11-13周B超测量胎儿颈后透明层厚度，筛查唐氏综合征，正常<2.5mm" },
+  { name:"唐筛", desc:"抽血+NT值计算唐氏风险概率，准确率约70%" },
+  { name:"无创DNA", desc:"抽母血检测胎儿DNA，准确率>99%，自费约1000-3000元" },
+  { name:"大排畸", desc:"孕20-24周系统B超，筛查胎儿结构畸形，最重要的一次B超" },
+  { name:"OGTT", desc:"口服75g葡萄糖后测空腹/1h/2h血糖，筛查妊娠糖尿病" },
+  { name:"NST", desc:"胎心监护，监测胎动时胎心率变化，评估胎儿宫内状况" },
+  { name:"GBS筛查", desc:"孕36周阴道分泌物培养，阳性需分娩时用抗生素" },
+  { name:"BPD/FL/HC/AC", desc:"B超测量胎儿双顶径/股骨长/头围/腹围，评估胎儿发育" },
+];
+const DEFAULT_ITEMS = ["收缩压","舒张压","体重","宫高","腹围","胎心率","血红蛋白","空腹血糖","尿蛋白","羊水指数","双顶径","股骨长","头围","胎盘位置","胎位"];
+// ========== 数据 ==========
+const KEY = 'preg_assist_v1';
+let D = load();
+function load() {
+  try { const r = JSON.parse(localStorage.getItem(KEY)); if (r) return r; } catch(e){}
+  return { profile: null, records: [], expenses: [], settings: { apiKey: '' } };
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch(e){} }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+// ========== UI 工具 ==========
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const k in (attrs||{})) {
+    const v = attrs[k];
+    if (k === 'class') el.className = v;
+    else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2).toLowerCase(), v);
+    else if (v !== undefined && v !== null) el.setAttribute(k, v);
+  }
+  for (const c of kids) {
+    if (c === null || c === undefined) continue;
+    if (typeof c === 'string' || typeof c === 'number') el.appendChild(document.createTextNode(String(c)));
+    else el.appendChild(c);
+  }
+  return el;
+}
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// ========== 孕周计算 ==========
+function calcWeeks() {
+  const p = D.profile; if (!p) return null;
+  const lmp = new Date(p.lmp); const now = new Date();
+  if (isNaN(lmp.getTime())) return null;
+  const days = Math.max(0, Math.floor((now - lmp) / 86400000));
+  const wks = Math.floor(days / 7), dys = days % 7;
+  const edd = new Date(p.edd); const remain = edd ? Math.max(0, Math.ceil((edd - now) / 86400000)) : null;
+  return { days, wks, dys, remain, edd };
+}
+function nextCheckup(wks) {
+  return CHECKUP_SCHEDULE.find(s => {
+    const nums = s.week.replace('周','').split('-').map(Number);
+    const lo = nums[0] || 0, hi = nums[1] || lo;
+    return wks < hi;
+  }) || null;
+}
+// ========== 判定 ==========
+function judge(key, val) {
+  const ref = NORMAL_RANGES[key];
+  if (!ref || typeof val !== 'number') return null;
+  if ((ref.min !== undefined && val < ref.min) || (ref.max !== undefined && val > ref.max)) return 'bad';
+  return 'ok';
+}
+function abnormalKeys(record) {
+  const list = [];
+  for (const k in (record.items||{})) {
+    const v = record.items[k];
+    if (typeof v === 'number' && judge(k, v) === 'bad') list.push(k);
+  }
+  return list;
+}
+// ========== 规则引擎 AI 解读（离线） ==========
+function ruleInterpret(record, profile) {
+  let out = '📋 本次检查自动解读（规则引擎）：\n\n';
+  const items = record.items || {};
+  let any = false;
+  for (const k in items) {
+    const v = items[k];
+    if (v === undefined || v === null || v === '') continue;
+    const ref = NORMAL_RANGES[k];
+    if (ref) {
+      const st = judge(k, v);
+      if (st === 'bad') { out += `🔴 ${k}：${v} ${ref.unit||''}（异常${ref.desc ? '——' + ref.desc : ''}）\n`; any = true; }
+      else out += `🟢 ${k}：${v} ${ref.unit||''}（正常范围 ${ref.min??'-'}~${ref.max??'-'}）\n`;
+    } else {
+      out += `⚪ ${k}：${v}\n`;
+    }
+  }
+  if (!any) out += '\n✅ 本次检查未发现超出参考范围的项目。\n';
+  out += '\n⚠️ 本解读由内置规则自动生成，仅供参考，不能替代医生诊断。如有异常请及时就医。';
+  return out;
+}
+function ruleDiet(profile) {
+  const p = profile || D.profile || {};
+  let out = '🍽️ 个性化饮食建议（根据孕周与检查结果）：\n\n';
+  const wks = p.wks;
+  if (wks !== undefined && wks !== null) {
+    if (wks < 14) out += '▪️ 孕早期（<14周）：重点补充叶酸（400μg/天），多吃深色蔬菜、豆类，清淡饮食缓解孕吐。\n';
+    else if (wks < 28) out += '▪️ 孕中期（14-28周）：胎儿生长加速，增加蛋白质和钙（每日1000mg），注意补铁。\n';
+    else out += '▪️ 孕晚期（>28周）：控制体重增速，少食多餐，补充铁和DHA，为分娩储备能量。\n';
+  }
+  // 根据最近检查异常调整
+  if (D.records.length) {
+    const latest = D.records.slice().sort((a,b)=>b.date.localeCompare(a.date))[0];
+    const conds = [];
+    const it = latest.items||{};
+    if (typeof it['血红蛋白']==='number' && it['血红蛋白']<110) conds.push('贫血');
+    if (typeof it['空腹血糖']==='number' && it['空腹血糖']>5.1) conds.push('血糖高');
+    if (typeof it['收缩压']==='number' && it['收缩压']>140) conds.push('血压高');
+    if (typeof it['羊水指数']==='number' && it['羊水指数']<8) conds.push('羊水少');
+    for (const c of conds) {
+      const g = DIET_GUIDE.byCondition[c];
+      if (g) { out += `\n⚠️ 检测到「${c}」：\n  ✅ ${g.advice}\n  ❌ ${g.avoid}\n`; }
+    }
+  }
+  return out;
+}
+// ========== 可选 DeepSeek API（设置中填 key 后启用） ==========
+async function deepseekAsk(prompt, system) {
+  const key = (D.settings && D.settings.apiKey) || '';
+  if (!key) return null;
+  try {
+    const r = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify({ model: 'deepseek-chat', messages: [
+        { role: 'system', content: system || '你是孕期健康顾问。' },
+        { role: 'user', content: prompt }
+      ], max_tokens: 1500, temperature: 0.3 })
+    });
+    const j = await r.json();
+    if (j && j.choices && j.choices[0]) return j.choices[0].message.content;
+    return '（API 返回异常：' + (j.error ? j.error.message : '未知错误') + '）';
+  } catch(e) {
+    return '（AI 调用失败：' + e.message + '）';
+  }
+}
+// ========== 主渲染 ==========
+let curTab = 'home';
+const TABS = [
+  { id:'home', ic:'🏠', l:'首页' },
+  { id:'checklist', ic:'📋', l:'产检清单' },
+  { id:'records', ic:'📝', l:'检查记录' },
+  { id:'ai', ic:'🤖', l:'AI解读' },
+  { id:'trend', ic:'📈', l:'趋势对比' },
+  { id:'expense', ic:'💰', l:'费用' },
+  { id:'diet', ic:'🍽️', l:'饮食' },
+  { id:'know', ic:'📚', l:'知识' },
+];
+function renderTabs() {
+  const box = document.getElementById('tabs'); box.innerHTML = '';
+  for (const t of TABS) {
+    box.appendChild(h('button', { class:'tab' + (curTab===t.id?' active':''), onclick:()=>{ curTab=t.id; render(); } },
+      h('span', {class:'ic'}, t.ic), h('span', {}, t.l)));
+  }
+}
+function renderHeader() {
+  const w = calcWeeks();
+  const sub = document.getElementById('headerSub');
+  if (!D.profile) { sub.textContent = '请先创建孕期档案'; return; }
+  let s = `孕 ${w.wks} 周 +${w.dys} 天 · 预产期 ${D.profile.edd}`;
+  if (w.remain !== null) s += ` · 距预产期 ${w.remain} 天`;
+  sub.textContent = s;
+}
+function render() {
+  renderHeader(); renderTabs();
+  const c = document.getElementById('content');
+  switch (curTab) {
+    case 'home': c.innerHTML = ''; c.appendChild(viewHome()); break;
+    case 'checklist': c.innerHTML = ''; c.appendChild(viewChecklist()); break;
+    case 'records': c.innerHTML = ''; c.appendChild(viewRecords()); break;
+    case 'ai': c.innerHTML = ''; c.appendChild(viewAI()); break;
+    case 'trend': c.innerHTML = ''; c.appendChild(viewTrend()); break;
+    case 'expense': c.innerHTML = ''; c.appendChild(viewExpense()); break;
+    case 'diet': c.innerHTML = ''; c.appendChild(viewDiet()); break;
+    case 'know': c.innerHTML = ''; c.appendChild(viewKnow()); break;
+  }
+}
+// ========== 首页 ==========
+function viewHome() {
+  const box = h('div', {});
+  if (!D.profile) {
+    box.appendChild(h('div', {class:'card', style:{textAlign:'center'}},
+      h('div', {style:{fontSize:'40px'}}, '🤰'),
+      h('div', {style:{fontSize:'15px',color:'#64748b',margin:'8px 0'}}, '欢迎使用孕期管理助手'),
+      h('button', {class:'btn btn-p', onclick:modalProfile}, '📝 创建孕期档案'),
+    ));
+  } else {
+    const w = calcWeeks();
+    const nxt = nextCheckup(w.wks);
+    box.appendChild(h('div', {class:'card', style:{background:'linear-gradient(135deg,#fce4ec,#f8bbd0)', textAlign:'center'}},
+      h('div', {style:{fontSize:'30px',fontWeight:700,color:'#c4628a'}}, `孕 ${w.wks} 周 +${w.dys} 天`),
+      h('div', {style:{fontSize:'13px',color:'#8b5e7a',marginTop:'4px'}}, `预产期 ${w.edd} · 距预产期 ${w.remain} 天`),
+      nxt ? h('div', {style:{fontSize:'12px',color:'#e91e63',marginTop:'8px',fontWeight:600}}, `📌 下次检查：${nxt.week} ${nxt.name}`) : null,
+      D.profile.riskFactors ? h('div', {style:{marginTop:'6px'}}, h('span',{class:'tag tag-warn'}, '⚠️ ' + D.profile.riskFactors)) : null,
+      h('div', {style:{marginTop:'10px'}}, h('button', {class:'btn btn-s btn-xs', onclick:modalProfile}, '✏️ 编辑档案')),
+    ));
+  }
+  // 最近三次对比
+  const rc = D.records.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  if (rc.length >= 2) {
+    const latest3 = rc.slice(0,3);
+    const keys = new Set();
+    latest3.forEach(r => Object.keys(r.items||{}).forEach(k => keys.add(k)));
+    const list = [...keys].filter(k => latest3.some(r => r.items[k] !== undefined && r.items[k] !== ''));
+    const card = h('div', {class:'card'}, h('div',{class:'card-title'},'📊 最近三次检查对比（滑动窗口）'));
+    const tbl = h('table', {class:'tbl'}, h('tr', {}, h('th',{},'项目'), ...latest3.map(r => h('th',{}, r.date.slice(5)+' 孕'+r.week))));
+    for (const k of list) {
+      const tr = h('tr', {});
+      tr.appendChild(h('td', {style:{fontWeight:500}}, k));
+      latest3.forEach((r, i) => {
+        const v = r.items[k];
+        const st = judge(k, v);
+        const prev = i > 0 ? latest3[i-1].items[k] : null;
+        let trend = '';
+        if (typeof v === 'number' && typeof prev === 'number') { if (v > prev) trend = ' ⬆'; else if (v < prev) trend = ' ⬇'; }
+        tr.appendChild(h('td', {}, h('span', {class:'tag '+(st==='bad'?'tag-bad':st==='ok'?'tag-ok':'')}, String(v ?? '-') + trend)));
+      });
+      tbl.appendChild(tr);
+    }
+    card.appendChild(tbl);
+    box.appendChild(card);
+  }
+  // 统计
+  const total = D.expenses.reduce((s,e)=>s+(e.amount||0),0);
+  box.appendChild(h('div', {class:'card', style:{display:'flex',justifyContent:'space-around'}},
+    h('div',{class:'stat'}, h('div',{class:'stat-num'}, D.records.length), h('div',{class:'stat-lbl'},'检查次数')),
+    h('div',{class:'stat'}, h('div',{class:'stat-num'}, '¥'+total.toFixed(0)), h('div',{class:'stat-lbl'},'总费用')),
+    h('div',{class:'stat'}, h('div',{class:'stat-num'}, D.expenses.length), h('div',{class:'stat-lbl'},'费用记录')),
+  ));
+  return box;
+}
+// ========== 产检清单 ==========
+function viewChecklist() {
+  const box = h('div', {});
+  box.appendChild(h('div', {class:'card-title'}, '📋 标准产检时间表'));
+  for (const s of CHECKUP_SCHEDULE) {
+    const done = D.records.some(r => (r.week || '').includes(s.week) || (r.notes||'').includes(s.name));
+    box.appendChild(h('div', {class:'card', style:{opacity:done?'0.6':'1', borderLeft:'3px solid '+(done?'#86efac':'#fda4af')}},
+      h('div', {style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+        h('b', {}, `${s.week} ${s.name}`),
+        h('span', {class:'tag '+(done?'tag-ok':'tag-warn')}, done?'✅ 已完成':'📌 待检查')),
+      h('div', {style:{fontSize:'12px',color:'#64748b',marginTop:'4px'}}, s.items.join('、')),
+      h('div', {style:{fontSize:'11px',color:'#94a3b8',marginTop:'2px'}}, s.note),
+    ));
+  }
+  return box;
+}
+// ========== 检查记录 ==========
+function viewRecords() {
+  const box = h('div', {});
+  box.appendChild(h('div', {style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}},
+    h('div', {class:'card-title', style:{margin:0}}, '📝 检查记录'),
+    h('button', {class:'btn btn-p btn-xs', onclick:()=>modalRecord(null)}, '+ 添加记录'),
+  ));
+  const sorted = D.records.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  if (!sorted.length) box.appendChild(h('div', {class:'empty'}, '暂无检查记录，点击右上角「+ 添加记录」开始'));
+  for (const r of sorted) {
+    const abn = abnormalKeys(r);
+    const items = Object.entries(r.items||{}).filter(([,v])=>v!==undefined&&v!==''&&v!==null);
+    box.appendChild(h('div', {class:'card'},
+      h('div', {style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+        h('b', {}, r.date + ' 孕' + r.week + '周'),
+        h('div', {}, h('button',{class:'btn btn-s btn-xs',style:{marginRight:'4px'},onclick:()=>modalRecord(r)},'✏️'),
+                 h('button',{class:'btn btn-d btn-xs',onclick:()=>{ if(confirm('确定删除这条记录？')){ D.records=D.records.filter(x=>x.id!==r.id); save(); render(); } }},'🗑'))),
+      r.hospital ? h('div', {style:{fontSize:'11px',color:'#94a3b8'}}, r.hospital + (r.doctor?' · '+r.doctor:'')) : null,
+      items.length ? h('div', {style:{marginTop:'6px',fontSize:'12px'}},
+        ...items.slice(0,10).map(([k,v]) => h('span', {class:'tag '+(judge(k,v)==='bad'?'tag-bad':judge(k,v)==='ok'?'tag-ok':'')}, `${k}: ${v}`))) : null,
+      abn.length ? h('div', {style:{marginTop:'6px',fontSize:'11px',color:'#dc2626'}}, '⚠️ 异常项：' + abn.join('、')) : null,
+      r.notes ? h('div', {style:{marginTop:'6px',fontSize:'11px',color:'#64748b'}}, '📝 ' + r.notes) : null,
+    ));
+  }
+  return box;
+}
+// ========== AI 解读 ==========
+function viewAI() {
+  const box = h('div', {});
+  box.appendChild(h('div', {class:'card-title'}, '🤖 AI 智能解读'));
+  const noKey = !((D.settings||{}).apiKey);
+  if (noKey) {
+    box.appendChild(h('div', {class:'alert alert-warn'},
+      '当前使用内置规则引擎解读（完全离线、免费）。\n如需更深入的AI分析，可在「设置」中填入 DeepSeek API Key（api.deepseek.com 免费注册获取）。'));
+  }
+  const outBox = h('div', {});
+  const btnRow = h('div', {class:'btn-row'},
+    h('button', {class:'btn btn-p btn-xs', onclick: async ()=>{
+      if (!D.records.length) { outBox.innerHTML=''; outBox.appendChild(h('div',{class:'ai-box'},'暂无检查记录可解读')); return; }
+      const latest = D.records.slice().sort((a,b)=>b.date.localeCompare(a.date))[0];
+      outBox.innerHTML=''; outBox.appendChild(h('div',{class:'ai-box'},'⏳ 分析中...'));
+      let text = ruleInterpret(latest, D.profile);
+      if (!noKey) {
+        const ai = await deepseekAsk('请解读以下孕期检查结果（' + latest.date + '，孕' + latest.week + '周）：\n' +
+          Object.entries(latest.items||{}).map(([k,v])=>`${k}: ${v}${NORMAL_RANGES[k]?'（参考：'+NORMAL_RANGES[k].min+'-'+NORMAL_RANGES[k].max+' '+NORMAL_RANGES[k].unit+'）':''}`).join('\n') +
+          '\n请用「医学结论+通俗解释」双层结构，逐项分析，标注异常，最后附免责声明。', '你是资深妇产科医生。');
+        if (ai) text = ai;
+      }
+      outBox.innerHTML=''; outBox.appendChild(h('div',{class:'ai-box'}, text));
+    }}, '📋 解读最近检查'),
+    h('button', {class:'btn btn-s btn-xs', onclick: async ()=>{
+      if (!D.records.length) { outBox.innerHTML=''; outBox.appendChild(h('div',{class:'ai-box'},'暂无记录可总结')); return; }
+      const sorted = D.records.slice().sort((a,b)=>a.date.localeCompare(a.date));
+      outBox.innerHTML=''; outBox.appendChild(h('div',{class:'ai-box'},'⏳ 总结中...'));
+      let text = '📊 孕期数据自动总结（规则引擎）：\n\n共 ' + sorted.length + ' 次检查记录。\n';
+      const allBad = {};
+      sorted.forEach(r => abnormalKeys(r).forEach(k => allBad[k] = (allBad[k]||0)+1));
+      const badKeys = Object.keys(allBad);
+      if (badKeys.length) {
+        text += '\n⚠️ 出现异常的项目：\n' + badKeys.map(k => `  ${k}：${allBad[k]}次异常`).join('\n');
+      } else {
+        text += '\n✅ 各次检查均未发现超出参考范围的项目。\n';
+      }
+      if (!noKey) {
+        const ai = await deepseekAsk('请对以下孕期全部检查记录做综合分析：\n' +
+          sorted.map(r=>r.date+' 孕'+r.week+'周: '+Object.entries(r.items||{}).map(([k,v])=>`${k}:${v}`).join(', ')).join('\n---\n') +
+          '\n请评估整体进展、识别异常趋势、列出风险点，最后附免责声明。', '你是资深妇产科医生。');
+        if (ai) text = ai;
+      }
+      outBox.innerHTML=''; outBox.appendChild(h('div',{class:'ai-box'}, text));
+    }}, '📊 孕期总结'),
+    h('button', {class:'btn btn-s btn-xs', onclick:()=>modalSettings()}, '⚙️ 设置'),
+  );
+  box.appendChild(btnRow);
+  box.appendChild(outBox);
+  box.appendChild(h('div', {style:{fontSize:'10px',color:'#94a3b8',textAlign:'center',marginTop:'8px'}},
+    '⚠️ AI分析仅供参考，不能替代医生诊断。如有异常请及时就医。'));
+  return box;
+}
+// ========== 趋势对比 ==========
+function viewTrend() {
+  const box = h('div', {});
+  box.appendChild(h('div', {class:'card-title'}, '📈 趋势对比'));
+  const sorted = D.records.slice().sort((a,b)=>a.date.localeCompare(a.date));
+  if (sorted.length < 2) { box.appendChild(h('div', {class:'empty'}, '需要至少2次检查记录才能对比趋势')); return box; }
+  // 最近三次滑动窗口
+  const latest3 = sorted.slice(-3);
+  box.appendChild(h('div', {class:'card'},
+    h('div', {class:'card-title'}, '🔄 最近三次对比（每新增一条自动滑动）'),
+    h('div', {style:{fontSize:'11px',color:'#94a3b8',marginBottom:'8px'}}, '对比按检查单上的实际检查日期排序，非录入日期'),
+    (() => {
+      const keys = new Set();
+      latest3.forEach(r => Object.keys(r.items||{}).forEach(k => keys.add(k)));
+      const list = [...keys].filter(k => latest3.some(r => r.items[k]!==undefined && r.items[k]!==''));
+      const tbl = h('table', {class:'tbl'}, h('tr',{}, h('th',{},'项目'), ...latest3.map(r=>h('th',{}, r.date.slice(5)+' 孕'+r.week))));
+      for (const k of list) {
+        const tr = h('tr',{});
+        tr.appendChild(h('td',{style:{fontWeight:500}}, k));
+        latest3.forEach((r,i)=>{
+          const v = r.items[k]; const st = judge(k,v);
+          const prev = i>0?latest3[i-1].items[k]:null;
+          let trend='';
+          if (typeof v==='number' && typeof prev==='number') { if (v>prev) trend=' ⬆'; else if (v<prev) trend=' ⬇'; }
+          tr.appendChild(h('td',{}, h('span',{class:'tag '+(st==='bad'?'tag-bad':st==='ok'?'tag-ok':'')}, String(v??'-')+trend)));
+        });
+        tbl.appendChild(tr);
+      }
+      return tbl;
+    })(),
+  ));
+  // 单项折线图（数值型）
+  const numKeys = new Set();
+  sorted.forEach(r => Object.keys(r.items||{}).forEach(k => { if (typeof r.items[k]==='number') numKeys.add(k); }));
+  for (const k of [...numKeys].slice(0,6)) {
+    const ref = NORMAL_RANGES[k];
+    const vals = sorted.map(r => ({ d: r.date, v: r.items[k] }));
+    const max = Math.max(...vals.map(x=>x.v));
+    box.appendChild(h('div', {class:'card'},
+      h('div', {style:{display:'flex',justifyContent:'space-between',marginBottom:'6px'}},
+        h('b', {}, k), ref ? h('span',{style:{fontSize:'11px',color:'#94a3b8'}}, `正常 ${ref.min??'-'}~${ref.max??'-'} ${ref.unit}`) : null),
+      h('div', {class:'chart-row'},
+        ...vals.map(x => {
+          const hh = max>0 ? (x.v/max*55+12) : 12;
+          const st = judge(k, x.v);
+          const color = st==='bad' ? '#ef4444' : st==='ok' ? '#86efac' : '#c4628a';
+          return h('div', {class:'chart-col'},
+            h('div', {style:{fontSize:'9px',color:'#64748b'}}, x.v),
+            h('div', {class:'chart-bar', style:{height:hh+'px', background:color}}),
+            h('div', {class:'chart-lbl'}, x.d.slice(5)));
+        })),
+    ));
+  }
+  return box;
+}
+// ========== 费用统计 ==========
+function viewExpense() {
+  const box = h('div', {});
+  box.appendChild(h('div', {style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'10px'}},
+    h('div', {class:'card-title', style:{margin:0}}, '💰 费用统计'),
+    h('button', {class:'btn btn-p btn-xs', onclick:()=>modalExpense(null)}, '+ 添加费用'),
+  ));
+  const total = D.expenses.reduce((s,e)=>s+(e.amount||0),0);
+  const byCat = {};
+  D.expenses.forEach(e => { byCat[e.category] = (byCat[e.category]||0) + (e.amount||0); });
+  const cats = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+  box.appendChild(h('div', {class:'card', style:{display:'flex',justifyContent:'space-around'}},
+    h('div',{class:'stat'}, h('div',{class:'stat-num'}, '¥'+total.toFixed(0)), h('div',{class:'stat-lbl'},'总费用')),
+    h('div',{class:'stat'}, h('div',{class:'stat-num'}, D.expenses.length), h('div',{class:'stat-lbl'},'记录数')),
+  ));
+  if (cats.length) {
+    const maxC = cats[0][1];
+    const card = h('div', {class:'card'}, h('div',{class:'card-title'},'📊 分类统计'));
+    for (const [cat, amt] of cats) {
+      card.appendChild(h('div', {style:{marginBottom:'6px'}},
+        h('div', {style:{display:'flex',justifyContent:'space-between',fontSize:'12px'}}, h('span',{},cat), h('span',{},'¥'+amt.toFixed(0))),
+        h('div', {class:'bar'}, h('div', {class:'bar-fill', style:{width:(amt/maxC*100)+'%'}}))));
+    }
+    box.appendChild(card);
+  }
+  const sorted = D.expenses.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  for (const e of sorted) {
+    box.appendChild(h('div', {class:'card'},
+      h('div', {style:{display:'flex',justifyContent:'space-between'}},
+        h('div', {}, h('b',{style:{fontSize:'13px'}}, e.date), h('span',{class:'tag'}, e.category),
+          e.selfPaid ? h('span',{class:'tag tag-warn'},'自费') : h('span',{class:'tag tag-ok'},'医保')),
+        h('div', {}, h('b',{style:{color:'#c4628a'}}, '¥'+(e.amount||0).toFixed(2)),
+          h('button',{class:'btn btn-d btn-xs',style:{marginLeft:'6px',fontSize:'10px'},onclick:()=>{ if(confirm('删除这条费用？')){ D.expenses=D.expenses.filter(x=>x.id!==e.id); save(); render(); } }},'×'))),
+      e.note ? h('div', {style:{fontSize:'11px',color:'#64748b',marginTop:'4px'}}, e.note) : null,
+    ));
+  }
+  return box;
+}
+// ========== 饮食生活 ==========
+function viewDiet() {
+  const box = h('div', {});
+  // 规则个性化建议
+  box.appendChild(h('div', {class:'card'}, h('div',{class:'ai-box'}, ruleDiet())));
+  box.appendChild(h('div', {class:'card'},
+    h('div', {class:'card-title'}, '✅ 推荐吃的食物'),
+    h('table', {class:'tbl'}, h('tr',{},h('th',{},'食物'),h('th',{},'原因'),h('th',{},'阶段')),
+      ...DIET_GUIDE.recommend.map(f => h('tr',{}, h('td',{},f.food), h('td',{style:{fontSize:'11px'}},f.reason), h('td',{},f.stage))))));
+  box.appendChild(h('div', {class:'card'},
+    h('div', {class:'card-title'}, '🚫 不能吃/少吃'),
+    h('table', {class:'tbl'}, h('tr',{},h('th',{},'食物'),h('th',{},'原因'),h('th',{},'级别')),
+      ...DIET_GUIDE.avoid.map(f => h('tr',{}, h('td',{},f.food), h('td',{style:{fontSize:'11px'}},f.reason), h('td',{},f.severity))))));
+  box.appendChild(h('div', {class:'card'},
+    h('div', {class:'card-title'}, '📋 生活提醒'),
+    h('div', {style:{fontSize:'12px',lineHeight:'1.9'}},
+      h('div',{},'🏃 运动：散步、孕妇瑜伽、游泳（避免剧烈运动和腹部受压）'),
+      h('div',{},'😴 睡眠：左侧卧最佳，每日7-9小时'),
+      h('div',{},'💊 补充：叶酸（孕前3月~孕3月）、铁剂（遵医嘱）、钙片（中晚期）'),
+      h('div',{},'🚭 禁止：吸烟、二手烟、饮酒'),
+      h('div',{},'🌡️ 注意：避免高温环境（桑拿、热水澡>39°C）'))));
+  return box;
+}
+// ========== 知识库 ==========
+function viewKnow() {
+  const box = h('div', {});
+  box.appendChild(h('div', {class:'card'},
+    h('div', {class:'card-title'}, '📚 检查项目正常值参考'),
+    h('table', {class:'tbl'}, h('tr',{},h('th',{},'项目'),h('th',{},'正常范围'),h('th',{},'单位'),h('th',{},'说明')),
+      ...Object.entries(NORMAL_RANGES).map(([k,v]) => h('tr',{}, h('td',{},k), h('td',{},(v.min??'-')+' ~ '+(v.max??'-')), h('td',{},v.unit), h('td',{style:{fontSize:'11px'}},v.desc))))));
+  box.appendChild(h('div', {class:'card'},
+    h('div', {class:'card-title'}, '📖 检查项目名词解释'),
+    h('div', {style:{fontSize:'12px',lineHeight:'2'}},
+      ...KNOWLEDGE.map(x => h('div',{}, '🔹 ' + x.name + '：' + x.desc)))));
+  return box;
+}
+// ========== 弹窗 ==========
+function showModal(title, body, onSave) {
+  const ov = h('div', {class:'modal-ov', onclick:e=>{ if(e.target===ov) ov.remove(); }},
+    h('div', {class:'modal'},
+      h('div', {style:{display:'flex',justifyContent:'space-between',marginBottom:'12px'}},
+        h('b', {style:{fontSize:'16px'}}, title),
+        h('button', {style:{background:'none',border:'none',fontSize:'18px',cursor:'pointer'}, onclick:()=>ov.remove()}, '×')),
+      body,
+      onSave ? h('div', {style:{display:'flex',gap:'8px',marginTop:'12px'}},
+        h('button', {class:'btn btn-s', onclick:()=>ov.remove()}, '取消'),
+        h('button', {class:'btn btn-p', onclick:()=>{ onSave(); ov.remove(); }}, '保存')) : null));
+  document.body.appendChild(ov);
+}
+function modalProfile() {
+  const p = D.profile || { lmp:'', edd:'', age:'', height:'', preWeight:'', riskFactors:'' };
+  const body = h('div', {},
+    h('label',{class:'lbl'},'末次月经日期（实际日期）'), h('input',{class:'inp',type:'date',id:'f_lmp',value:p.lmp}),
+    h('label',{class:'lbl'},'预产期'), h('input',{class:'inp',type:'date',id:'f_edd',value:p.edd}),
+    h('label',{class:'lbl'},'年龄'), h('input',{class:'inp',type:'number',id:'f_age',value:p.age,placeholder:'岁'}),
+    h('label',{class:'lbl'},'身高(cm)'), h('input',{class:'inp',type:'number',id:'f_height',value:p.height,placeholder:'cm'}),
+    h('label',{class:'lbl'},'孕前体重(kg)'), h('input',{class:'inp',type:'number',id:'f_pw',value:p.preWeight,placeholder:'kg'}),
+    h('label',{class:'lbl'},'高危因素'), h('input',{class:'inp',id:'f_rf',value:p.riskFactors,placeholder:'如：高龄、双胎、糖尿病史（逗号分隔）'}),
+  );
+  showModal('📝 孕期档案', body, () => {
+    const g = id => (document.getElementById(id)||{}).value || '';
+    D.profile = { lmp:g('f_lmp'), edd:g('f_edd'), age:g('f_age'), height:g('f_height'), preWeight:g('f_pw'), riskFactors:g('f_rf') };
+    save(); render();
+  });
+}
+function modalRecord(rec) {
+  const r = rec || { id:'', date:new Date().toISOString().slice(0,10), week:'', hospital:'', doctor:'', items:{}, notes:'' };
+  const body = h('div', {},
+    h('label',{class:'lbl'},'检查日期（以检查单实际日期为准）'), h('input',{class:'inp',type:'date',id:'r_date',value:r.date}),
+    h('label',{class:'lbl'},'孕周'), h('input',{class:'inp',id:'r_week',value:r.week,placeholder:'如：12周+3天'}),
+    h('label',{class:'lbl'},'医院'), h('input',{class:'inp',id:'r_hos',value:r.hospital}),
+    h('label',{class:'lbl'},'医生'), h('input',{class:'inp',id:'r_doc',value:r.doctor}),
+    h('div',{class:'card-title',style:{marginTop:'8px'}},'检查项目（可只填做了的）'));
+  const itemsWrap = h('div', {});
+  for (const item of DEFAULT_ITEMS) {
+    itemsWrap.appendChild(h('div', {class:'row', style:{marginBottom:'4px'}},
+      h('label',{class:'lbl',style:{minWidth:'86px',flex:'none'}}, item),
+      h('input',{class:'inp',style:{flex:1},id:'it_'+item,value:r.items[item]??'',placeholder:NORMAL_RANGES[item]?('正常 '+NORMAL_RANGES[item].min+'~'+NORMAL_RANGES[item].max+' '+NORMAL_RANGES[item].unit):'数值'})));
+  }
+  // 自定义项目
+  const customWrap = h('div', {});
+  const addCustom = () => customWrap.appendChild(h('div', {class:'row', style:{marginBottom:'4px'}},
+    h('input',{class:'inp',style:{flex:1},placeholder:'项目名'}), h('input',{class:'inp',style:{flex:1},placeholder:'数值'}),
+    h('input',{class:'inp',style:{width:'70px'},placeholder:'单位'})));
+  itemsWrap.appendChild(h('div', {style:{fontSize:'11px',color:'#94a3b8',margin:'6px 0'}}, '✏️ 自定义项目：'));
+  itemsWrap.appendChild(customWrap);
+  itemsWrap.appendChild(h('button', {class:'btn btn-s btn-xs', onclick:addCustom}, '+ 添加自定义项目'));
+  body.appendChild(itemsWrap);
+  body.appendChild(h('label',{class:'lbl',style:{marginTop:'8px'}},'备注'));
+  body.appendChild(h('textarea',{class:'inp',id:'r_note',style:{height:'50px'}}, r.notes||''));
+  showModal(rec?'✏️ 编辑检查记录':'➕ 添加检查记录', body, () => {
+    const g = id => (document.getElementById(id)||{}).value || '';
+    const items = {};
+    for (const item of DEFAULT_ITEMS) {
+      const el = document.getElementById('it_'+item);
+      if (el && el.value !== '') { const n = parseFloat(el.value); items[item] = isNaN(n) ? el.value : n; }
+    }
+    customWrap.querySelectorAll('.row').forEach(row => {
+      const ins = row.querySelectorAll('input');
+      if (ins.length >= 2 && ins[0].value) { const n = parseFloat(ins[1].value); items[ins[0].value] = isNaN(n)?ins[1].value:n; }
+    });
+    const nr = { id: r.id || uid(), date: g('r_date'), week: g('r_week'), hospital: g('r_hos'), doctor: g('r_doc'), items, notes: g('r_note') };
+    if (rec) { const i = D.records.findIndex(x=>x.id===rec.id); if (i>=0) D.records[i]=nr; }
+    else D.records.push(nr);
+    save(); render();
+  });
+}
+function modalExpense(exp) {
+  const e = exp || { id:'', date:new Date().toISOString().slice(0,10), category:'挂号费', amount:'', selfPaid:false, note:'' };
+  const body = h('div', {},
+    h('label',{class:'lbl'},'日期'), h('input',{class:'inp',type:'date',id:'e_date',value:e.date}),
+    h('label',{class:'lbl'},'类别'),
+    h('select',{class:'inp',id:'e_cat'}, ...['挂号费','检查费','B超费','化验费','药品费','其他'].map(c=>h('option',{value:c,selected:c===e.category},c))),
+    h('label',{class:'lbl'},'金额(元)'), h('input',{class:'inp',type:'number',id:'e_amt',value:e.amount,placeholder:'¥'}),
+    h('label',{class:'lbl'},'备注'), h('input',{class:'inp',id:'e_note',value:e.note}),
+    h('label',{}, h('input',{type:'checkbox',id:'e_self',checked:e.selfPaid}), ' 自费（非医保）'));
+  showModal(exp?'✏️ 编辑费用':'➕ 添加费用', body, () => {
+    const g = id => (document.getElementById(id)||{}).value || '';
+    const ne = { id: exp?.id || uid(), date: g('e_date'), category: g('e_cat'), amount: parseFloat(g('e_amt'))||0,
+      selfPaid: (document.getElementById('e_self')||{}).checked || false, note: g('e_note') };
+    if (exp) { const i = D.expenses.findIndex(x=>x.id===exp.id); if (i>=0) D.expenses[i]=ne; }
+    else D.expenses.push(ne);
+    save(); render();
+  });
+}
+function modalSettings() {
+  const body = h('div', {},
+    h('div',{style:{fontSize:'12px',color:'#64748b',marginBottom:'8px'}},'填入 DeepSeek API Key 可启用深度AI解读。注册：platform.deepseek.com（免费额度）。留空则使用内置规则引擎。'),
+    h('label',{class:'lbl'},'DeepSeek API Key'), h('input',{class:'inp',id:'s_key',value:(D.settings||{}).apiKey||'',placeholder:'sk-...'}),
+    h('div', {style:{display:'flex',gap:'8px'}},
+      h('button',{class:'btn btn-d btn-xs',onclick:()=>{ if(confirm('确定清空全部数据？')){ localStorage.removeItem(KEY); location.reload(); } }},'🗑 清空全部数据'),
+      h('button',{class:'btn btn-s btn-xs',onclick:()=>{ const b=JSON.stringify(D,null,2); const a=document.createElement('a'); a.href='data:application/json;charset=utf-8,'+encodeURIComponent(b); a.download='pregnancy-backup-'+new Date().toISOString().slice(0,10)+'.json'; a.click(); }},'💾 导出备份'),
+    ),
+    h('input',{class:'inp',type:'file',id:'s_import',accept:'.json',style:{marginTop:'8px'}}),
+  );
+  // 文件导入
+  showModal('⚙️ 设置与备份', body, () => {
+    const k = (document.getElementById('s_key')||{}).value || '';
+    D.settings = D.settings||{}; D.settings.apiKey = k; save();
+    const fi = document.getElementById('s_import');
+    if (fi && fi.files && fi.files[0]) {
+      const fr = new FileReader();
+      fr.onload = () => { try { const j = JSON.parse(fr.result); D = j; save(); render(); alert('导入成功！'); } catch(e){ alert('导入失败：文件格式不正确'); } };
+      fr.readAsText(fi.files[0]);
+    }
+  });
+}
+// ========== 初始化 ==========
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+render();
+</script>
+</body>
+</html>
